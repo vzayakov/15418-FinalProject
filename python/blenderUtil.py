@@ -64,3 +64,8 @@ def mapToVertices(noise_map, max_height):
                 raw_faces.append(f5)
 
     return raw_vertices, raw_faces
+
+
+def generateRandMap(length, max_height):
+
+    return np.random.randint(0, max_height, size=(length, length), dtype="int")
