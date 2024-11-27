@@ -1,6 +1,7 @@
 #ifndef  __HEIGHTMAP_H__
 #define  __HEIGHTMAP_H__
 
+// Noise Map struct, for use on the CPU
 struct NoiseMap {
 
     NoiseMap(int w, int h) {
