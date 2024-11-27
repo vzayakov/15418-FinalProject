@@ -82,9 +82,7 @@ __global__ void kernelClearNoiseMap(float h) {
     int offset = (noiseMapY * width + noiseMapX);
     float value = h;
 
-    // Write to global memory: As an optimization, this code uses a float4
-    // store, which results in more efficient code than if it were coded as
-    // four separate float stores.
+    // Write to global memory
     *(float*)(&cuConstRendererParams.noiseMapData[offset]) = value;
 }
 
@@ -164,7 +162,7 @@ void TerrainGen::setup() {
 
 // allocOutputNoiseMap --
 //
-// Allocate buffer the renderer will render into.  Check status of
+// Allocate buffer where we'll put the noise map on the CPU.  Check status of
 // noise map first to avoid memory leak.
 void TerrainGen::allocOutputNoiseMap(int width, int height) {
 
@@ -189,13 +187,13 @@ void TerrainGen::clearNoiseMap() {
 }
 
 
-// Kernel that generates the Perlin noise map
+// Kernel that generates the Perlin noise map on the GPU
 __global__ void perlin() {
 
 }
 
 // Main function that generates the terrain. Makes all of the necessary
-// kernal calls.
+// kernel calls
 void TerrainGen::generate() {
-
+  // Call perlin() here, maybe other kernels too
 }
