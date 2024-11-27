@@ -8,12 +8,29 @@
 #define uint unsigned int
 #endif
 
-class TerrainGen {
-  // We can add items to the class here: constructor, destructor, methods, etc
-  TerrainGen(); // Constructor
-  virtual ~TerrainGen(); // Destructor
+struct NoiseMap;
 
-  // Add more stuff here
+class TerrainGen {
+
+  private:
+  
+    NoiseMap* noiseMap;
+    float* cudaDeviceNoiseMapData;
+  
+  public:
+    // We can add items to the class here: constructor, destructor, methods, etc
+    TerrainGen(); // Constructor
+    virtual ~TerrainGen(); // Destructor
+
+    const NoiseMap* getNoiseMap();
+
+    void setup();
+
+    void allocOutputNoiseMap(int width, int height);
+
+    void clearNoiseMap();
+
+    void generate();
 
 };
 

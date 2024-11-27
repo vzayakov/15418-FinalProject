@@ -9,7 +9,25 @@
 #include <string>
 
 #include "terrainGen.h"
+#include "noiseMap.h"
+
+void startTerrainGen(TerrainGen* generator) {
+
+  const NoiseMap* noiseMap = generator->getNoiseMap();
+
+}
 
 int main(int argc, char** argv) {
+
+  int imageSize = 1150;
+
+  TerrainGen* generator = new TerrainGen();
+
+  generator->allocOutputNoiseMap(imageSize, imageSize);
+  generator->setup();
+
+  startTerrainGen(generator);
+
   return 0;
+
 }
