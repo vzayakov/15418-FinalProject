@@ -1,5 +1,4 @@
 import numpy as np
-import bpy
 
 
 def mapToVertices(noise_map, max_height):
@@ -9,10 +8,10 @@ def mapToVertices(noise_map, max_height):
     xmin, ymin = -width/2, -height/2
     cur_index = 0
 
-    # Raw vertices array
     raw_vertices = []
-    # Raw faces array
     raw_faces = []
+    raw_edges = []
+
 
     for x in range(width):
         for y in range(height):
@@ -43,17 +42,17 @@ def mapToVertices(noise_map, max_height):
                 # Generate 6 faces
 
                 # v0 -> v1 -> v3 -> v2
-                f0 = (cur_index, cur_index + 1, cur_index + 2, cur_index + 3)
+                f0 = [cur_index, cur_index + 1, cur_index + 2, cur_index + 3]
                 # v0 -> v1 -> v5 -> v4
-                f1 = (cur_index, cur_index + 1, cur_index + 5, cur_index + 4)
+                f1 = [cur_index, cur_index + 1, cur_index + 5, cur_index + 4]
                 # v0 -> v2 -> v6 -> v4
-                f2 = (cur_index, cur_index + 2, cur_index + 6, cur_index + 4)
+                f2 = [cur_index, cur_index + 2, cur_index + 6, cur_index + 4]
                 # v3 -> v2 -> v6 -> v7
-                f3 = (cur_index + 3, cur_index + 2, cur_index + 6, cur_index + 7)
+                f3 = [cur_index + 3, cur_index + 2, cur_index + 6, cur_index + 7]
                 # v3 -> v1 -> v5 -> v7
-                f4 = (cur_index + 3, cur_index + 1, cur_index + 5, cur_index + 7)
+                f4 = [cur_index + 3, cur_index + 1, cur_index + 5, cur_index + 7]
                 # v4 -> v5 -> v7 -> v6
-                f5 = (cur_index + 4, cur_index + 5, cur_index + 7, cur_index + 6)
+                f5 = [cur_index + 4, cur_index + 5, cur_index + 7, cur_index + 6]
 
                 cur_index += 8
                 raw_faces.append(f0)
@@ -62,6 +61,10 @@ def mapToVertices(noise_map, max_height):
                 raw_faces.append(f3)
                 raw_faces.append(f4)
                 raw_faces.append(f5)
+
+
+                # Generate 12 edges
+
 
     return raw_vertices, raw_faces
 
