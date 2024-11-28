@@ -40,3 +40,15 @@ bpy.ops.object.mode_set(mode='EDIT')
 bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.mesh.remove_doubles(threshold = 0.05)
 bpy.ops.object.mode_set(mode='OBJECT')
+
+
+# Scale and place in the center
+bpy.context.scene.objects['Terrain'].scale = (1/5, 1/5, 1/9)    # TODO: Get rid of magic numbers
+bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
+bpy.context.scene.objects['Terrain'].location = (0.0, 0.0, 0.0)
+
+# Render using BLENDER_EEVEE for speed or 
+# CYCLES for accuracy
+bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+bpy.context.scene.render.filepath = '/Users/Yannis/Desktop/15418/rendertest.jpg'    # TODO: Get relative path
+bpy.ops.render.render(write_still=True)
