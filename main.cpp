@@ -25,7 +25,7 @@ void writeNoiseMap(TerrainGen* generator, const int dimX, const int dimY) {
     exit(EXIT_FAILURE);
   }
 
-  outNoiseMap << dimX << ' ' << dimY << '\n';
+  outNoiseMap << dimX << ' ' << dimY << '\n'; // Write dimensions at top of file
   for (int i = 0; i < dimY; i++) {
     for (int j = 0; j < dimX; j++) {
       outNoiseMap << noiseMap->data[i * dimX + j] << ' ';

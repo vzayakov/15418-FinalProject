@@ -14,23 +14,23 @@ class TerrainGen {
 
   private:
   
-    NoiseMap* noiseMap;
-    float* cudaDeviceNoiseMapData;
+    NoiseMap* noiseMap; // CPU noise map
+    float* cudaDeviceNoiseMapData; // GPU noise map
   
   public:
     // We can add items to the class here: constructor, destructor, methods, etc
     TerrainGen(); // Constructor
     virtual ~TerrainGen(); // Destructor
 
-    const NoiseMap* getNoiseMap();
+    const NoiseMap* getNoiseMap(); // Copy noise map from device to CPU
 
-    void setup();
+    void setup(); // Initial setup function
 
-    void allocOutputNoiseMap(int width, int height);
+    void allocOutputNoiseMap(int width, int height); // Allocate CPU noise map
 
-    void clearNoiseMap();
+    void clearNoiseMapDevice(); // Clears the noise map on the device
 
-    void generate();
+    void generate(); // Run perlin kernel
 
 };
 

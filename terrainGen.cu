@@ -164,17 +164,19 @@ void TerrainGen::setup() {
 //
 // Allocate buffer where we'll put the noise map on the CPU.  Check status of
 // noise map first to avoid memory leak.
+// Also sets all squares to 0.
 void TerrainGen::allocOutputNoiseMap(int width, int height) {
 
     if (noiseMap)
         delete noiseMap;
     noiseMap = new NoiseMap(width, height);
+    noiseMap.clear(0.f); // Set all squares to 0
 }
 
-// clearNoiseMap --
+// clearNoiseMapDevice --
 //
-// Clear the generated noise map.
-void TerrainGen::clearNoiseMap() {
+// Clear the generated noise map, on the device.
+void TerrainGen::clearNoiseMapDevice() {
 
     // 256 threads per block is a healthy number
     dim3 blockDim(16, 16, 1);
@@ -182,7 +184,7 @@ void TerrainGen::clearNoiseMap() {
         (noiseMap->width + blockDim.x - 1) / blockDim.x,
         (noiseMap->height + blockDim.y - 1) / blockDim.y);
 
-    kernelClearNoiseMap<<<gridDim, blockDim>>>(1.f, 1.f, 1.f, 1.f);
+    kernelClearNoiseMap<<<gridDim, blockDim>>>(0.f);
     cudaDeviceSynchronize();
 }
 
@@ -196,4 +198,10 @@ __global__ void perlin() {
 // kernel calls
 void TerrainGen::generate() {
   // Call perlin() here, maybe other kernels too
+
+  // NOTES
+  /*
+    Grid edges will be located at edges of pixels. We will use pixel centers
+    to compute the offset vectors.
+  */ 
 }
