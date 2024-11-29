@@ -17,7 +17,7 @@ float interpolate(float a0, float a1, float w) {
 
 // Sample Perlin noise at coordinates (x, y)
 // SOURCE: https://www.youtube.com/watch?v=kCIaHqb60Cw
-float perlin(float x, float y) {
+float perlinRef(float x, float y) {
 
   // Determine grid cell corner coordinates
   int XLeft = floor(x);
@@ -96,7 +96,7 @@ NoiseMap* refSerialMain(int scale, int persistence, int lacunarity, int octaves)
       float amp = 1;
 
       for (int i = 0; i < octaves; i++) {
-        val += perlin(x * freq / scale, y * freq / scale) * amp;
+        val += perlinRef(x * freq / scale, y * freq / scale) * amp;
 
         freq *= lacunarity;
         amp *= persistence; 
