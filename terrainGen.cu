@@ -225,24 +225,104 @@ __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
                        int initialGridSize, int octaves, int persistence,
                        int lacunarity, int blockSize) {
 
+  // get global and local thread indices
   int threadIndex = threadIdx.y * blockDim.y + threadIdx.x;
+  int pixelX = blockIdx.x * blockDim.x + threadIdx.x;
+  int pixelY = blockIdx.y * blockDim.y + threadIdx.y;
+
+  // Number of threads
+  int number_of_threads = blockDim.x * blockDim.y;
+
+  // Initial number of pixel per grid cell
   int gridSize = initialGridSize;
 
+  // Used for computing gradient values
   __shared__ short permutationTable[256];
-  __shared__ float gradients[(blockSize + 1) * (blockSize + 1)];
 
+  // Used for storing gradient values
+  extern __shared__ float gradients[];
+
+  // Set up permutation table
   if (threadIndex < 256) {
     permutationTable[threadIndex] = permutation[threadIndex];
   }
+  __syncthreads();
 
-  for (int i = 0; i < octaves; i++) {
+  // Local possible gradient values
+  float grad_vals [4] = {M_PI / 4.f, 3.f * M_PI / 4.f, 5.f * M_PI / 4.f, 7.f * M_PI / 4.f};
 
+  // For every iteration
+  for (int iteration = 0; iteration < octaves; iteration++) {
+
+
+    // FIRST: SET UP GRADIENTS FOR ITERATION
+    ////////////////////////////////////////
     int gridLeftCoord = (blockSize * blockIdx.x) / gridSize;
     int gridRightCoord = (blockSize * (blockIdx.x + 1)) / gridSize;
     int gridTopCoord = (blockSize * blockIdx.y) / gridSize;
     int gridBottomCoord = (blockSize * (blockIdx.y + 1)) / gridSize;
+
+    // Number of grid cells enclosed by the block
     int gridNumber = (gridRightCoord - gridLeftCoord) * (gridBottomCoord - gridTopCoord); 
 
+    // Simplify things by assuming that each block
+    // perfectly encloses a set of square grids
+
+    // Given that assumption, this is the number
+    // of intersections / gradients
+    int number_of_gradients = (gridRightCoord - gridLeftCoord + 1) * (gridRightCoord - gridLeftCoord + 1);
+
+    // Number of gradients could be larger than number of 
+    // of threads in the block
+    for (int i = 0; i < number_of_gradients; i += number_of_threads) {
+
+      // Make sure we are within bounds
+      if (i * number_of_threads + threadIndex < number_of_gradients) {
+
+        // Local gradient coordinates
+        int gradient_block_coord = i * number_of_threads + threadIndex;
+
+        // Global gradient coordinates
+        int gradient_globalX = gridLeftCoord + (gradient_block_coord % (gridRightCoord - gridLeftCoord));
+        int gradient_globalY = gridTopCoord  + (gradient_block_coord / (gridBottomCoord - gridTopCoord));
+
+        // Grab hash from permutation table
+        int hash = permutationTable[(permutationTable[(permutationTable[gradient_globalX % 256] + gradient_globalY) % 256] + iteration) % 256];
+
+        // Use hash to get gradient value
+        gradients[gradient_block_coord] = grad_vals[hash % 4];
+      }
+    }
+    __syncthreads();
+    ////////////////////////////////////////
+
+
+
+    // SECOND: COMPUTE NEW VALUES
+    ////////////////////////////////////////
+    
+    // Given that thread maps to valid pixel
+    if ((pixelX < noiseMapWidth) && (pixelY < noiseMapHeight)) {
+
+      // Get local coordinates for pixel gradients
+      // We want local coordinates because these are the indices
+      // used for grabbing the correct gradients
+      
+      int left = threadIdx.x / gridSize; int right = left + 1;
+      int top  = threadIdx.y / gridSize; int bottom = top + 1;
+
+
+    }
+
+    ////////////////////////////////////////
+
+
+    // THIRD: STORE NEW VALUES LOCALLY
+    ////////////////////////////////////////
+
+    ////////////////////////////////////////
+
+      
   }
 
 }
@@ -270,7 +350,7 @@ void TerrainGen::generate(int initialGridSize, int octaves, int persistence,
 
   dim3 threadsPerBlock(threadX, threadY, 1);
   dim3 numBlocks(blockX, blockY, 1);
-  perlin<< numBlocks, threadsPerBlock >> (noiseMapWidth, noiseMapHeight,
-                            initialGridSize, octaves, persistence, lacunarity,
-                            blockSize);
+  perlin <<numBlocks, threadsPerBlock,  (blockSize + 1) * (blockSize + 1)>> (noiseMapWidth, noiseMapHeight,
+                                                                             initialGridSize, octaves, persistence, lacunarity,
+                                                                             blockSize);
 }
