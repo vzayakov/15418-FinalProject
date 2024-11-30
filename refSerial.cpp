@@ -5,11 +5,6 @@
 #include "noiseMap.h"
 #include "util.h"
 
-// 2D Vector struct
-typedef struct {
-  float x, y;
-} vector2;
-
 float interpolate(float a0, float a1, float w) {
 
   return (a1 - a0) * (w * w * w * (w * (w * 6 - 15) + 10)) + a0;

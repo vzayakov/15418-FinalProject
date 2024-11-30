@@ -7,6 +7,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <vector>
+#include <cstdlib>
 
 #include "noiseMap.h"
 #include "util.h"
@@ -15,12 +16,29 @@
 #include <cuda_runtime.h>
 #include <driver_functions.h>
 
+// Permutation table for Perlin noise
+short permutationGlobal[256] = { 151,160,137,91,90,15,
+   131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
+   190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
+   88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
+   77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
+   102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
+   135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
+   5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
+   223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
+   129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
+   251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
+   49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
+   138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180
+   };
+
 // This stores the global constants
 struct GlobalConstants {
 
   int noiseMapWidth;
   int noiseMapHeight;
   float* noiseMapData;
+  short* permutation;
 
 };
 
@@ -48,6 +66,7 @@ TerrainGen::TerrainGen() {
 
   noiseMap = NULL;
   cudaDeviceNoiseMapData = NULL;
+  cudaDevicePermutationTable = NULL;
 
 }
 
@@ -60,6 +79,7 @@ TerrainGen::~TerrainGen() {
 
   if (cudaDeviceNoiseMapData) {
     cudaFree(cudaDeviceNoiseMapData);
+    cudaFree(cudaDevicePermutationTable);
   }
 }
 
@@ -83,7 +103,7 @@ __global__ void kernelClearNoiseMap(float h) {
     float value = h;
 
     // Write to global memory
-    *(float*)(&cuConstRendererParams.noiseMapData[offset]) = value;
+    *(float*)(&cuConstTerrainGenParams.noiseMapData[offset]) = value;
 }
 
 const noiseMap* TerrainGen::getNoiseMap() {
@@ -142,6 +162,10 @@ void TerrainGen::setup() {
     // See the CUDA Programmer's Guide for descriptions of
     // cudaMalloc and cudaMemcpy
     cudaMalloc(&cudaDeviceNoiseMapData, sizeof(float) * noiseMap->width * noiseMap->height);
+    cudaMalloc(&cudaDevicePermutationTable, sizeof(short) * 256);
+
+    cudaMemcpy(cudaDevicePermutationTable, permutationGlobal,
+               sizeof(short) * 256, cudaMemcpyHostToDevice);
 
     // Initialize parameters in constant memory.  We didn't talk about
     // constant memory in class, but the use of read-only constant
@@ -155,8 +179,9 @@ void TerrainGen::setup() {
     params.noiseMapWidth = noiseMap->width;
     params.noiseMapHeight = noiseMap->height;
     params.noiseMapData = cudaDeviceNoiseMapData;
+    params.permutation = cudaDevicePermutationTable;
 
-    cudaMemcpyToSymbol(cuConstRendererParams, &params, sizeof(GlobalConstants));
+    cudaMemcpyToSymbol(cuConstTerrainGenParams, &params, sizeof(GlobalConstants));
 
 }
 
@@ -188,20 +213,64 @@ void TerrainGen::clearNoiseMapDevice() {
     cudaDeviceSynchronize();
 }
 
+// Interpolation, using the smootherstep() function
+// first and second derivatives are both 0
+__device__ __inline__ float interpolate(float a0, float a1, float w) {
+
+  return (a1 - a0) * (w * w * w * (w * (w * 6 - 15) + 10)) + a0;
+}
 
 // Kernel that generates the Perlin noise map on the GPU
-__global__ void perlin() {
+__global__ void perlin(int noiseMapWidth, int noiseMapHeight,
+                       int initialGridSize, int octaves, int persistence,
+                       int lacunarity, int blockSize) {
+
+  int threadIndex = threadIdx.y * blockDim.y + threadIdx.x;
+  int gridSize = initialGridSize;
+
+  __shared__ short permutationTable[256];
+  __shared__ float gradients[(blockSize + 1) * (blockSize + 1)];
+
+  if (threadIndex < 256) {
+    permutationTable[threadIndex] = permutation[threadIndex];
+  }
+
+  for (int i = 0; i < octaves; i++) {
+
+    int gridLeftCoord = (blockSize * blockIdx.x) / gridSize;
+    int gridRightCoord = (blockSize * (blockIdx.x + 1)) / gridSize;
+    int gridTopCoord = (blockSize * blockIdx.y) / gridSize;
+    int gridBottomCoord = (blockSize * (blockIdx.y + 1)) / gridSize;
+    int gridNumber = (gridRightCoord - gridLeftCoord) * (gridBottomCoord - gridTopCoord); 
+
+  }
 
 }
 
+// NOTES
+/*
+  Grid edges will be located at edges of pixels. We will use pixel centers
+  to compute the offset vectors.
+*/ 
+
 // Main function that generates the terrain. Makes all of the necessary
 // kernel calls
-void TerrainGen::generate() {
+void TerrainGen::generate(int initialGridSize, int octaves, int persistence, 
+                          int lacunarity) {
   // Call perlin() here, maybe other kernels too
 
-  // NOTES
-  /*
-    Grid edges will be located at edges of pixels. We will use pixel centers
-    to compute the offset vectors.
-  */ 
+  int noiseMapWidth = cuConstTerrainGenParams.noiseMapWidth;
+  int noiseMapHeight = cuConstTerrainGenParams.noiseMapHeight;
+
+  const int blockSize = 100;
+  const int threadX = 32;
+  const int threadY = 32;
+  const int blockX = (noiseMapWidth / 100) + 1;
+  const int blockY = (noiseMapHeight / 100) + 1;
+
+  dim3 threadsPerBlock(threadX, threadY, 1);
+  dim3 numBlocks(blockX, blockY, 1);
+  perlin<< numBlocks, threadsPerBlock >> (noiseMapWidth, noiseMapHeight,
+                            initialGridSize, octaves, persistence, lacunarity,
+                            blockSize);
 }
