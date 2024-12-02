@@ -48,10 +48,11 @@ int main(int argc, char** argv) {
   generator->allocOutputNoiseMap(noiseMapWidth, noiseMapHeight);
   generator->setup();
   // Generate the noise map
-  generator->generate();
+  generator->generate(300, 1, 1, 1);
   // Write the generated noise map to a .txt file
   writeNoiseMap(generator, noiseMapWidth, noiseMapHeight);
 
+  delete generator;
   return 0;
 
 }

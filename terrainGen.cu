@@ -9,6 +9,7 @@
 #include <vector>
 #include <cstdlib>
 
+#include "terrainGen.h"
 #include "noiseMap.h"
 #include "util.h"
 
@@ -47,13 +48,13 @@ struct GlobalConstants {
 // be stored in special "constant" memory on the GPU. (we didn't talk
 // about this type of memory in class, but constant memory is a fast
 // place to put read-only variables).
-__constant__ GlobalConstants cuConstTerrainGenParams
+__constant__ GlobalConstants cuConstTerrainGenParams;
 
 // Debugging macro
 #define gpuErrChk() { gpuAssert(__FILE__, __LINE__); }
 inline void gpuAssert(const char *file, int line, bool abort=true)
 {
-    cudaError_t code = cudaPeekAtLastError();
+  cudaError_t code = cudaPeekAtLastError();
    if (code != cudaSuccess) 
    {
       fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
@@ -94,7 +95,7 @@ __global__ void kernelClearNoiseMap(float h) {
     int noiseMapY = blockIdx.y * blockDim.y + threadIdx.y;
 
     int width = cuConstTerrainGenParams.noiseMapWidth;
-    int height = cuConstTerranGenParams.noiseMapHeight;
+    int height = cuConstTerrainGenParams.noiseMapHeight;
 
     if (noiseMapX >= width || noiseMapY >= height)
         return;
@@ -106,7 +107,7 @@ __global__ void kernelClearNoiseMap(float h) {
     *(float*)(&cuConstTerrainGenParams.noiseMapData[offset]) = value;
 }
 
-const noiseMap* TerrainGen::getNoiseMap() {
+const NoiseMap* TerrainGen::getNoiseMap() {
 
     // Need to copy contents of the generated noiseMap from device memory
     // before we expose the noiseMap object to the caller
@@ -195,7 +196,7 @@ void TerrainGen::allocOutputNoiseMap(int width, int height) {
     if (noiseMap)
         delete noiseMap;
     noiseMap = new NoiseMap(width, height);
-    noiseMap.clear(0.f); // Set all squares to 0
+    noiseMap->clear(0.f); // Set all squares to 0
 }
 
 // clearNoiseMapDevice --
@@ -221,13 +222,13 @@ __device__ __inline__ float interpolate(float a0, float a1, float w) {
 }
 
 // Computes the dot product of a pixel's offset vector with a given gradient
-__device__ __inline__ float dotGridGradient(int ix, int iy, float x, float y
+__device__ __inline__ float dotGridGradient(int ix, int iy, float x, float y,
                       int gridLeftCoord, int gridRightCoord, int gridTopCoord,
                       float* gradients) {
 
   // Get gradient from integer coordinates
   int index = (iy - gridTopCoord) * (gridRightCoord - gridLeftCoord) + (ix - gridLeftCoord);
-  float gridAngle = gradients[index]
+  float gradAngle = gradients[index];
   
   vector2 gradient;
   gradient.x = cos(gradAngle);
@@ -257,6 +258,8 @@ __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
 
   // Initial number of pixel per grid cell
   int gridSize = initialGridSize;
+  // Current amplitude
+  float amp = 1;
 
   // Used for computing gradient values
   __shared__ short permutationTable[256];
@@ -266,11 +269,18 @@ __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
   // Used for storing gradient values
   extern __shared__ float gradients[];
 
+  // Permutation table
+  short* permutation = cuConstTerrainGenParams.permutation;
   // Set up permutation table
   if (threadIndex < 256) {
     permutationTable[threadIndex] = permutation[threadIndex];
   }
   __syncthreads();
+
+  // Initialize all pixel values to 0
+  if (threadIndex < 1024) {
+    pixelValues[threadIndex] = 0.f;
+  }
 
   // Local possible gradient values
   float grad_vals [4] = {M_PI / 4.f, 3.f * M_PI / 4.f, 5.f * M_PI / 4.f, 7.f * M_PI / 4.f};
@@ -332,31 +342,31 @@ __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
       // We want local coordinates because these are the indices
       // used for grabbing the correct gradients
       
-      float left = pixelX / gridSize;
-      float top  = pixelY / gridSize;
+      float left = (float)(pixelX) / (float)(gridSize);
+      float top  = (float)(pixelY) / (float)(gridSize);
 
       // Determine grid cell corner coordinates
-      int XLeft = floor(x);
-      int YTop = floor(y);
+      int XLeft = floor(left);
+      int YTop = floor(top);
       int XRight = XLeft + 1;
       int YBottom = YTop + 1;
 
       // Compute interpolation weights
-      float sx = x - (float)(XLeft);
-      float sy = y - (float)(YTop);
+      float sx = left - (float)(XLeft);
+      float sy = top - (float)(YTop);
 
       // Compute and interpolate top two corners
-      float n0 = dotGridGradient(XLeft, YTop, x, y, gridLeftCoord, gridRightCoord,
-                                 gridTopCoord, &gradients);
-      float n1 = dotGridGradient(XRight, YTop, x, y, gridLeftCoord, gridRightCoord,
-                                 gridTopCoord, &gradients);
+      float n0 = dotGridGradient(XLeft, YTop, left, top, gridLeftCoord, gridRightCoord,
+                                 gridTopCoord, (float*)(&gradients));
+      float n1 = dotGridGradient(XRight, YTop, left, top, gridLeftCoord, gridRightCoord,
+                                 gridTopCoord, (float*)(&gradients));
       float ix0 = interpolate(n0, n1, sx);
 
       // Compute and interpolate bottomn two corners
-      n0 = dotGridGradient(XLeft, YBottom, x, y, gridLeftCoord, gridRightCoord,
-                           gridTopCoord, &gradients);
-      n1 = dotGridGradient(XRight, YBottom, x, y, gridLeftCoord, gridRightCoord,
-                           gridTopCoord, &gradients);
+      n0 = dotGridGradient(XLeft, YBottom, left, top, gridLeftCoord, gridRightCoord,
+                           gridTopCoord, (float*)(&gradients));
+      n1 = dotGridGradient(XRight, YBottom, left, top, gridLeftCoord, gridRightCoord,
+                           gridTopCoord, (float*)(&gradients));
       float ix1 = interpolate(n0, n1, sx);
 
       // Final step: Interpolate between the two resulting values, now in y
@@ -371,10 +381,14 @@ __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
     ////////////////////////////////////////
 
     ////////////////////////////////////////
-    pixelValues[threadIndex] = value;
-      
+    pixelValues[threadIndex] += (value * amp);
+    // Update the grid size and amplitude
+    gridSize = gridSize / lacunarity;
+    amp = amp * persistence;
   }
-  cuConstTerrainGenParams.noiseMapData[pixelY * noiseMapWidth + pixelX];
+  // Clamping to [-1, 1]
+  float finalVal = CLAMP(pixelValues[threadIndex], -1.0f, 1.0f);
+  cuConstTerrainGenParams.noiseMapData[pixelY * noiseMapWidth + pixelX] = finalVal;
 
 }
 
@@ -390,8 +404,8 @@ void TerrainGen::generate(int initialGridSize, int octaves, int persistence,
                           int lacunarity) {
   // Call perlin() here, maybe other kernels too
 
-  int noiseMapWidth = cuConstTerrainGenParams.noiseMapWidth;
-  int noiseMapHeight = cuConstTerrainGenParams.noiseMapHeight;
+  int noiseMapWidth = noiseMap->width;
+  int noiseMapHeight = noiseMap->height;
 
   const int threadX = 32;
   const int threadY = 32;
@@ -401,7 +415,8 @@ void TerrainGen::generate(int initialGridSize, int octaves, int persistence,
 
   dim3 threadsPerBlock(threadX, threadY, 1);
   dim3 numBlocks(blockX, blockY, 1);
-  perlin <<numBlocks, threadsPerBlock,  (blockSize + 1) * (blockSize + 1)>> (noiseMapWidth, noiseMapHeight,
+  perlin<<<numBlocks, threadsPerBlock,  ((blockSize + 1) * (blockSize + 1))>>>(noiseMapWidth, noiseMapHeight,
                                                                              initialGridSize, octaves, persistence, lacunarity,
                                                                              blockSize);
+  cudaDeviceSynchronize();
 }

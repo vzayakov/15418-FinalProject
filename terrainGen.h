@@ -16,6 +16,7 @@ class TerrainGen {
   
     NoiseMap* noiseMap; // CPU noise map
     float* cudaDeviceNoiseMapData; // GPU noise map
+    short* cudaDevicePermutationTable; // Permutation table
   
   public:
     // We can add items to the class here: constructor, destructor, methods, etc
@@ -30,7 +31,8 @@ class TerrainGen {
 
     void clearNoiseMapDevice(); // Clears the noise map on the device
 
-    void generate(); // Run perlin kernel
+    void generate(int initialGridSize, int octaves, int persistence, 
+                          int lacunarity); // Run perlin kernel
 
 };
 
