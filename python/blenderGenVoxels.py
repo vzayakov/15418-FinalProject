@@ -1,17 +1,26 @@
 import bpy
 
+'''
 randMap = [[8, 6, 8, 6, 1],
            [9, 1, 2, 2, 7],
            [3, 3, 3, 8, 4],
            [7, 9, 1, 9, 4],
            [3, 9, 1, 1, 3]]
+'''
+
+genMap = list()
+fd = open("/Users/victorz/Desktop/15418-FinalProject/noisemap.txt", "r")
+next(fd) # Skip the first line
+for line in fd:
+    linearray = [round((12 * (float(n) + 1))) for n in line.split()]
+    genMap.append(linearray)
 
 # Add cubes in the scene based on map values
-for x in range(5):
-    for y in range(5):
+for x in range(50):
+    for y in range(50):
 
-        for z in range(randMap[x][y]):
-            bpy.ops.mesh.primitive_cube_add(location=(2*x, 2*y, 2*z))
+        z = genMap[x][y]
+        bpy.ops.mesh.primitive_cube_add(location=(x, y, z))
 
 # Remove default cube   
 bpy.ops.object.select_all(action='DESELECT')
@@ -43,12 +52,12 @@ bpy.ops.object.mode_set(mode='OBJECT')
 
 
 # Scale and place in the center
-bpy.context.scene.objects['Terrain'].scale = (1/5, 1/5, 1/9)    # TODO: Get rid of magic numbers
+bpy.context.scene.objects['Terrain'].scale = (1, 1, 1)    # TODO: Get rid of magic numbers
 bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
 bpy.context.scene.objects['Terrain'].location = (0.0, 0.0, 0.0)
 
 # Render using BLENDER_EEVEE for speed or 
 # CYCLES for accuracy
 bpy.context.scene.render.engine = 'BLENDER_EEVEE'
-bpy.context.scene.render.filepath = '/Users/Yannis/Desktop/15418/rendertest.jpg'    # TODO: Get relative path
+bpy.context.scene.render.filepath = '/Users/victorz/Desktop/rendertest.jpg'    # TODO: Get relative path
 bpy.ops.render.render(write_still=True)
