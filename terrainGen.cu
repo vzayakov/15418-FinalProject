@@ -220,13 +220,35 @@ __device__ __inline__ float interpolate(float a0, float a1, float w) {
   return (a1 - a0) * (w * w * w * (w * (w * 6 - 15) + 10)) + a0;
 }
 
+// Computes the dot product of a pixel's offset vector with a given gradient
+__device__ __inline__ float dotGridGradient(int ix, int iy, float x, float y
+                      int gridLeftCoord, int gridRightCoord, int gridTopCoord,
+                      float* gradients) {
+
+  // Get gradient from integer coordinates
+  int index = (iy - gridTopCoord) * (gridRightCoord - gridLeftCoord) + (ix - gridLeftCoord);
+  float gridAngle = gradients[index]
+  
+  vector2 gradient;
+  gradient.x = cos(gradAngle);
+  gradient.y = sin(gradAngle);
+
+  // Compute the distance vector
+  float dx = x - (float)(ix);
+  float dy = y - (float)(iy);
+
+  // Compute the dot product
+  return (dx * gradient.x + dy * gradient.y);
+
+}
+
 // Kernel that generates the Perlin noise map on the GPU
 __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
                        int initialGridSize, int octaves, int persistence,
                        int lacunarity, int blockSize) {
 
   // get global and local thread indices
-  int threadIndex = threadIdx.y * blockDim.y + threadIdx.x;
+  int threadIndex = threadIdx.y * blockDim.x + threadIdx.x;
   int pixelX = blockIdx.x * blockDim.x + threadIdx.x;
   int pixelY = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -238,6 +260,8 @@ __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
 
   // Used for computing gradient values
   __shared__ short permutationTable[256];
+  // Used for storing intermediate pixel values
+  __shared__ float pixelValues[1024];
 
   // Used for storing gradient values
   extern __shared__ float gradients[];
@@ -258,9 +282,9 @@ __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
     // FIRST: SET UP GRADIENTS FOR ITERATION
     ////////////////////////////////////////
     int gridLeftCoord = (blockSize * blockIdx.x) / gridSize;
-    int gridRightCoord = (blockSize * (blockIdx.x + 1)) / gridSize;
+    int gridRightCoord = ((blockSize * (blockIdx.x + 1)) / gridSize) + 1;
     int gridTopCoord = (blockSize * blockIdx.y) / gridSize;
-    int gridBottomCoord = (blockSize * (blockIdx.y + 1)) / gridSize;
+    int gridBottomCoord = ((blockSize * (blockIdx.y + 1)) / gridSize) + 1;
 
     // Number of grid cells enclosed by the block
     int gridNumber = (gridRightCoord - gridLeftCoord) * (gridBottomCoord - gridTopCoord); 
@@ -300,17 +324,43 @@ __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
 
     // SECOND: COMPUTE NEW VALUES
     ////////////////////////////////////////
-    
+    float value = 0;
     // Given that thread maps to valid pixel
     if ((pixelX < noiseMapWidth) && (pixelY < noiseMapHeight)) {
 
-      // Get local coordinates for pixel gradients
+      // Get local/grid coordinates for pixel gradients
       // We want local coordinates because these are the indices
       // used for grabbing the correct gradients
       
-      int left = threadIdx.x / gridSize; int right = left + 1;
-      int top  = threadIdx.y / gridSize; int bottom = top + 1;
+      float left = pixelX / gridSize;
+      float top  = pixelY / gridSize;
 
+      // Determine grid cell corner coordinates
+      int XLeft = floor(x);
+      int YTop = floor(y);
+      int XRight = XLeft + 1;
+      int YBottom = YTop + 1;
+
+      // Compute interpolation weights
+      float sx = x - (float)(XLeft);
+      float sy = y - (float)(YTop);
+
+      // Compute and interpolate top two corners
+      float n0 = dotGridGradient(XLeft, YTop, x, y, gridLeftCoord, gridRightCoord,
+                                 gridTopCoord, &gradients);
+      float n1 = dotGridGradient(XRight, YTop, x, y, gridLeftCoord, gridRightCoord,
+                                 gridTopCoord, &gradients);
+      float ix0 = interpolate(n0, n1, sx);
+
+      // Compute and interpolate bottomn two corners
+      n0 = dotGridGradient(XLeft, YBottom, x, y, gridLeftCoord, gridRightCoord,
+                           gridTopCoord, &gradients);
+      n1 = dotGridGradient(XRight, YBottom, x, y, gridLeftCoord, gridRightCoord,
+                           gridTopCoord, &gradients);
+      float ix1 = interpolate(n0, n1, sx);
+
+      // Final step: Interpolate between the two resulting values, now in y
+      value = interpolate(ix0, ix1, sy);
 
     }
 
@@ -321,9 +371,10 @@ __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
     ////////////////////////////////////////
 
     ////////////////////////////////////////
-
+    pixelValues[threadIndex] = value;
       
   }
+  cuConstTerrainGenParams.noiseMapData[pixelY * noiseMapWidth + pixelX];
 
 }
 
@@ -342,11 +393,11 @@ void TerrainGen::generate(int initialGridSize, int octaves, int persistence,
   int noiseMapWidth = cuConstTerrainGenParams.noiseMapWidth;
   int noiseMapHeight = cuConstTerrainGenParams.noiseMapHeight;
 
-  const int blockSize = 100;
   const int threadX = 32;
   const int threadY = 32;
-  const int blockX = (noiseMapWidth / 100) + 1;
-  const int blockY = (noiseMapHeight / 100) + 1;
+  const int blockSize = 32;
+  const int blockX = (noiseMapWidth + threadX - 1) / threadX;
+  const int blockY = (noiseMapHeight + threadY - 1) / threadY;
 
   dim3 threadsPerBlock(threadX, threadY, 1);
   dim3 numBlocks(blockX, blockY, 1);
