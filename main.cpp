@@ -77,9 +77,11 @@ int main(int argc, char** argv) {
       {0 ,0, 0, 0}
   };
   // Switch statement for command line arguments
-  while ((opt = getopt_long(argc, argv, "h:w:s:o:p:l:f?", long_options, NULL)) != EOF) {
-
+  while ((opt = getopt_long(argc, argv, "f:h:w:s:o:p:l:?", long_options, NULL)) != EOF) {
       switch (opt) {
+      case 'f':
+        outputFilename = optarg;
+        break;
       case 'h':
         noiseMapHeight = atoi(optarg);
         break;
@@ -98,9 +100,6 @@ int main(int argc, char** argv) {
       case 'l':
         lacunarity = atoi(optarg);
         break;
-      case 'f':
-        outputFilename = optarg;
-        break;
       case '?':
       default:
         usage(argv[0]);
@@ -115,7 +114,9 @@ int main(int argc, char** argv) {
   } */
 
   // Instantiate the class object
+
   TerrainGen* generator = new TerrainGen();
+
 
   // Allocate noise map and set up all of the things
   generator->allocOutputNoiseMap(noiseMapWidth, noiseMapHeight);

@@ -9,7 +9,7 @@ randMap = [[8, 6, 8, 6, 1],
 '''
 
 genMap = list()
-fd = open("/Users/victorz/Desktop/15418-FinalProject/noisemap.txt", "r")
+fd = open("/Users/Yannis/Desktop/15418/15418-FinalProject/noisemap.txt", "r")
 next(fd) # Skip the first line
 for line in fd:
     linearray = [round((12 * (float(n) + 1))) for n in line.split()]
@@ -20,7 +20,7 @@ for x in range(50):
     for y in range(50):
 
         z = genMap[x][y]
-        bpy.ops.mesh.primitive_cube_add(location=(x, y, z))
+        bpy.ops.mesh.primitive_cube_add(location=(2*x, 2*y, 2*z))
 
 # Remove default cube   
 bpy.ops.object.select_all(action='DESELECT')
@@ -59,5 +59,5 @@ bpy.context.scene.objects['Terrain'].location = (0.0, 0.0, 0.0)
 # Render using BLENDER_EEVEE for speed or 
 # CYCLES for accuracy
 bpy.context.scene.render.engine = 'BLENDER_EEVEE'
-bpy.context.scene.render.filepath = '/Users/victorz/Desktop/rendertest.jpg'    # TODO: Get relative path
+bpy.context.scene.render.filepath = '/Users/Yannis/Desktop/rendertest.jpg'    # TODO: Get relative path
 bpy.ops.render.render(write_still=True)
