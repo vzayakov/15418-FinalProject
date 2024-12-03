@@ -78,7 +78,7 @@ NoiseMap* refSerialMain(int scale, int persistence, int lacunarity, int octaves)
 
   NoiseMap* noiseMap;
   noiseMap = new NoiseMap(noiseMapWidth, noiseMapHeight);
-  noiseMap.clear(0.f);
+  noiseMap->clear(0.f);
 
   for (int x = 0; x < noiseMapWidth; x++) {
 
