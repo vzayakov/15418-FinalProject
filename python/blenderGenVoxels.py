@@ -52,8 +52,8 @@ bpy.ops.object.mode_set(mode='OBJECT')
 
 
 # Scale and place in the center
-bpy.context.scene.objects['Terrain'].scale = (1, 1, 1)    # TODO: Get rid of magic numbers
-bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
+bpy.context.scene.objects['Terrain'].scale = (1/25, 1/25, 1/12)    # TODO: Get rid of magic numbers
+bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
 bpy.context.scene.objects['Terrain'].location = (0.0, 0.0, 0.0)
 
 # Render using BLENDER_EEVEE for speed or 
