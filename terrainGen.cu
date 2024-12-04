@@ -399,6 +399,21 @@ __global__ void perlinTemporal(int noiseMapWidth, int noiseMapHeight,
                        int initialGridSize, int octaves, int persistence,
                        int lacunarity, int blockSize) {
 
+/*
+ALGORITHM OUTLINE
+
+Launch one block per octave, each block having 1024 threads (32x32)
+Initially, load the permutation array in shared memory for each block
+In each block:
+  Look at 32x32 pixels at a time.
+  Load the corresponding gradients for those 32x32 pixels in shared memory
+  Compute the result for one pixel per thread, storing it at a unique address in global memory
+  Look at the next group of 32x32 pixels and repeat.
+Once all of the pixels in the image have been visited, and written to global memory,
+perform some kind of reduction (stream compression?) to sum the values of each pixel
+
+*/
+
 }
 
 // NOTES
