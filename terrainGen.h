@@ -31,8 +31,11 @@ class TerrainGen {
 
     void clearNoiseMapDevice(); // Clears the noise map on the device
 
-    void generate(int initialGridSize, int octaves, int persistence, 
-                          int lacunarity); // Run perlin kernel
+    void generateSpatial(int initialGridSize, int octaves, int persistence, 
+                          int lacunarity); // Run perlin kernel, spatial
+    
+    void generateTemporal(int initialGridSize, int octaves, int persistence, 
+                          int lacunarity); // Run perlin kernel, temporal
 
 };
 

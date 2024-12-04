@@ -244,7 +244,8 @@ __device__ __inline__ float dotGridGradient(int ix, int iy, float x, float y,
 }
 
 // Kernel that generates the Perlin noise map on the GPU
-__global__ void perlin(int noiseMapWidth, int noiseMapHeight,
+// Uses a spatial partitioning approach
+__global__ void perlinSpatial(int noiseMapWidth, int noiseMapHeight,
                        int initialGridSize, int octaves, int persistence,
                        int lacunarity, int blockSize) {
 
@@ -392,6 +393,14 @@ __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
 
 }
 
+// Kernel that generates the Perlin noise map on the GPU
+// Uses a temporal partitioning approach
+__global__ void perlinTemporal(int noiseMapWidth, int noiseMapHeight,
+                       int initialGridSize, int octaves, int persistence,
+                       int lacunarity, int blockSize) {
+
+}
+
 // NOTES
 /*
   Grid edges will be located at edges of pixels. We will use pixel centers
@@ -399,10 +408,10 @@ __global__ void perlin(int noiseMapWidth, int noiseMapHeight,
 */ 
 
 // Main function that generates the terrain. Makes all of the necessary
-// kernel calls
-void TerrainGen::generate(int initialGridSize, int octaves, int persistence, 
+// kernel calls, for spatial partitioning
+void TerrainGen::generateSpatial(int initialGridSize, int octaves, int persistence, 
                           int lacunarity) {
-  // Call perlin() here, maybe other kernels too
+  // Call perlinSpatial() here
 
   int noiseMapWidth = noiseMap->width;
   int noiseMapHeight = noiseMap->height;
@@ -415,8 +424,32 @@ void TerrainGen::generate(int initialGridSize, int octaves, int persistence,
 
   dim3 threadsPerBlock(threadX, threadY, 1);
   dim3 numBlocks(blockX, blockY, 1);
-  perlin<<<numBlocks, threadsPerBlock,  ((blockSize + 1) * (blockSize + 1))>>>(noiseMapWidth, noiseMapHeight,
+  perlinSpatial<<<numBlocks, threadsPerBlock,  ((blockSize + 1) * (blockSize + 1))>>>(noiseMapWidth, noiseMapHeight,
                                                                              initialGridSize, octaves, persistence, lacunarity,
                                                                              blockSize);
+  cudaDeviceSynchronize();
+}
+
+// Main function that generates the terrain. Makes all of the necessary
+// kernel calls, for temporal partitioning
+void TerrainGen::generateTemporal(int initialGridSize, int octaves, int persistence, 
+                          int lacunarity) {
+  // Call perlinTemporal() here
+
+  int noiseMapWidth = noiseMap->width;
+  int noiseMapHeight = noiseMap->height;
+
+  const int threadX = 32;
+  const int threadY = 32;
+  const int blockSize = 32;
+  const int blockX = octaves;
+  const int blockY = 1;
+
+  dim3 threadsPerBlock(threadX, threadY, 1); // 1032 threads per block
+  dim3 numBlocks(blockX, blockY, 1); // numBlocks = octaves
+  // TO-DO: Set up shared memory
+  perlinTemporal<<<numBlocks, threadsPerBlock>>>(noiseMapWidth, noiseMapHeight,
+                                                 initialGridSize, octaves, persistence,
+                                                 lacunarity, blockSize);
   cudaDeviceSynchronize();
 }
