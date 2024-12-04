@@ -14,7 +14,7 @@
 
 #include "terrainGen.h"
 #include "noiseMap.h"
-// #include "refSerial.h"
+#include "refSerial.h"
 
 
 // Help message
@@ -129,16 +129,17 @@ int main(int argc, char** argv) {
   const auto compute_start = std::chrono::steady_clock::now();
   generator->generate(scale, octaves, persistence, lacunarity);
   const double compute_time = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start).count();
-  std::cout << "Computation time (sec): " << compute_time << '\n';
+  std::cout << "Parallel Computation time (sec): " << compute_time << '\n';
 
 
   // TODO: Experiencing Makefile issues here
 
 
-  // const auto serial_start = std::chrono::steady_clock::now();
-  // NoiseMap * noise_serial = refSerialMain(scale, persistence, lacunarity, octaves);
-  // const double serial_time = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - serial_start).count();
-  // std::cout << "Speedup: " << serial_time / compute_time << "x\n";
+  const auto serial_start = std::chrono::steady_clock::now();
+  NoiseMap * noise_serial = refSerialMain(scale, persistence, lacunarity, octaves);
+  const double serial_time = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - serial_start).count();
+  std::cout << "Serial Computation time (sec): " << serial_time << '\n';
+  std::cout << "Speedup: " << serial_time / compute_time << "x\n";
 
   // Write the generated noise map to a .txt file
   writeNoiseMap(generator, noiseMapWidth, noiseMapHeight, outputFilename);

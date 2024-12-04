@@ -10,6 +10,35 @@ float interpolate(float a0, float a1, float w) {
   return (a1 - a0) * (w * w * w * (w * (w * 6 - 15) + 10)) + a0;
 }
 
+vector2 randomGradient(int ix, int iy) {
+
+  srand(ix * iy); // Seed the RNG
+  // Generate a random real number in [0, 1]
+  float randomRealNumber = (float)(rand() / RAND_MAX);
+  // Convert to range [0, 2pi]
+  float randomAngle = randomRealNumber * 3.14159265 * 2.0f;
+
+  // Create the vector from the angle
+  vector2 v;
+  v.x = cos(randomAngle);
+  v.y = sin(randomAngle);
+
+  return v;
+}
+
+float dotGridGradient(int ix, int iy, float x, float y) {
+
+  // Get gradient from integer coordinates
+  vector2 gradient = randomGradient(ix, iy);
+
+  // Compute the distance vector
+  float dx = x - (float)(ix);
+  float dy = y - (float)(iy);
+
+  // Compute the dot product
+  return (dx * gradient.x + dy * gradient.y);
+}
+
 // Sample Perlin noise at coordinates (x, y)
 // SOURCE: https://www.youtube.com/watch?v=kCIaHqb60Cw
 float perlinRef(float x, float y) {
@@ -38,35 +67,6 @@ float perlinRef(float x, float y) {
   float value = interpolate(ix0, ix1, sy);
 
   return value;
-}
-
-vector2 randomGradient(int ix, int iy) {
-
-  srand(ix * iy); // Seed the RNG
-  // Generate a random real number in [0, 1]
-  float randomRealNumber = (float)(rand() / RAND_MAX);
-  // Convert to range [0, 2pi]
-  float randomAngle = randomRealNumber * 3.14159265 * 2.0f;
-
-  // Create the vector from the angle
-  vector2 v;
-  v.x = cos(randomAngle);
-  v.y = sin(randomAngle);
-
-  return v;
-}
-
-float dotGridGradient(int ix, int iy, float x, float y) {
-
-  // Get gradient from integer coordinates
-  vector2 gradient = randomGradient(ix, iy);
-
-  // Compute the distance vector
-  float dx = x - (float)(ix);
-  float dy = y - (float)(iy);
-
-  // Compute the dot product
-  return (dx * gradient.x + dy * gradient.y);
 }
 
 // Main function for serial reference implementation
@@ -104,5 +104,5 @@ NoiseMap* refSerialMain(int scale, int persistence, int lacunarity, int octaves)
     }
 
   }
-
+  return noiseMap;
 }
