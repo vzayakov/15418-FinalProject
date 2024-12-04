@@ -125,9 +125,9 @@ int main(int argc, char** argv) {
   // Allocate noise map and set up all of the things
   generator->allocOutputNoiseMap(noiseMapWidth, noiseMapHeight);
   generator->setup();
-  // Generate the noise map
+  // Generate the noise map, using Spatial partitioning
   const auto compute_start = std::chrono::steady_clock::now();
-  generator->generate(scale, octaves, persistence, lacunarity);
+  generator->generateSpatial(scale, octaves, persistence, lacunarity);
   const double compute_time = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start).count();
   std::cout << "Parallel Computation time (sec): " << compute_time << '\n';
 
