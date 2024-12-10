@@ -397,7 +397,7 @@ __global__ void perlinSpatial(int noiseMapWidth, int noiseMapHeight,
 // Uses a temporal partitioning approach
 __global__ void perlinTemporal(int noiseMapWidth, int noiseMapHeight,
                        int initialGridSize, int octaves, int persistence,
-                       int lacunarity, int blockSize) {
+                       int lacunarity, int blockSize, int MAX_GRADIENTS) {
 
 /*
 ALGORITHM OUTLINE
@@ -413,6 +413,91 @@ Once all of the pixels in the image have been visited, and written to global mem
 perform some kind of reduction (stream compression?) to sum the values of each pixel
 
 */
+
+  int threadIndex = threadIdx.y * blockDim.x + threadIdx.x;
+  int number_of_threads = blockDim.x * blockDim.y;
+
+
+
+  // Figure out total number of gradients to be computed
+  int current_octave = blockIdx.x; 
+  int current_grid_size = initialGridSize / int(pow(double(lacunarity), double(current_octave)));
+
+  int number_of_gradients = (current_grid_size + 1) * (current_grid_size + 1);
+
+  // shared array of gradients
+  extern __shared__ float gradients[];
+
+  // Permutation table used for computing gradient values
+  __shared__ short permutationTable[256];
+
+  // Set up permutation table
+  short* permutation = cuConstTerrainGenParams.permutation;
+  if (threadIndex < 256) {
+    permutationTable[threadIndex] = permutation[threadIndex];
+  }
+  __syncthreads();
+
+  // Private array of pixels
+  int pixels_per_thread = 1 + (noiseMapWidth * noiseMapHeight) / number_of_threads;
+  float pixels[pixels_per_thread];
+
+  // WORKING SET OF GRADIENTS?
+  // At every iteration check if any pixels need gradients outside of that 
+  // working set. Or rather find the maximum and minimum gradient index necessary for
+  // that iteration
+
+  // If out of gradient bounds, reload gradients from minimum index up to maximum gradient capacity
+
+  // This is really scuffed :( ...
+
+  // Also are pixels interleaved or congruent? (Easier indexing if congruent, better shared memory usage if interleaved)
+
+  // Then jsut do the rest same as spatial?
+
+
+
+
+
+  // Cool all gradients fit so just load them into shared memory
+  if (number_of_gradients < MAX_GRADIENTS) {
+
+    // FIRST SET UP ALL GRADIENTS
+    for (int i = 0; i < number_of_gradients; i += number_of_threads) {
+
+      // Make sure we are within bounds
+      if (i * number_of_threads + threadIndex < number_of_gradients) {
+
+        // Local gradient coordinates
+        int gradient_block_coord = i * number_of_threads + threadIndex;
+
+        // Global gradient coordinates
+        int gradient_globalX = gridLeftCoord + (gradient_block_coord % (gridRightCoord - gridLeftCoord));
+        int gradient_globalY = gridTopCoord  + (gradient_block_coord / (gridBottomCoord - gridTopCoord));
+
+        // Grab hash from permutation table
+        int hash = permutationTable[(permutationTable[(permutationTable[gradient_globalX % 256] + gradient_globalY) % 256] + iteration) % 256];
+
+        // Use hash to get gradient value
+        gradients[gradient_block_coord] = grad_vals[hash % 4];
+      }
+    }
+    __syncthreads();
+
+
+    
+
+
+
+
+  }
+  else {  // Oh no, we can't fit all of the gradients
+
+  }
+
+  
+
+
 
 }
 
@@ -462,9 +547,12 @@ void TerrainGen::generateTemporal(int initialGridSize, int octaves, int persiste
 
   dim3 threadsPerBlock(threadX, threadY, 1); // 1032 threads per block
   dim3 numBlocks(blockX, blockY, 1); // numBlocks = octaves
-  // TO-DO: Set up shared memory
-  perlinTemporal<<<numBlocks, threadsPerBlock>>>(noiseMapWidth, noiseMapHeight,
+  
+  // Allocate as much space as there is to gradients 
+  int MAX_GRADIENTS = 11744;
+
+  perlinTemporal<<<numBlocks, threadsPerBlock, MAX_GRADIENTS>>>(noiseMapWidth, noiseMapHeight,
                                                  initialGridSize, octaves, persistence,
-                                                 lacunarity, blockSize);
+                                                 lacunarity, blockSize, MAX_GRADIENTS);
   cudaDeviceSynchronize();
 }
