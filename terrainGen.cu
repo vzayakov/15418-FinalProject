@@ -17,6 +17,8 @@
 #include <cuda_runtime.h>
 #include <driver_functions.h>
 
+#define MAX_OCTAVES 128
+
 // Permutation table for Perlin noise
 short permutationGlobal[256] = { 151,160,137,91,90,15,
    131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
@@ -464,7 +466,7 @@ perform some kind of reduction (stream compression?) to sum the values of each p
       int gradient_globalX = gridLeftCoord + (gradient_block_coord % (gridRightCoord - gridLeftCoord));
       int gradient_globalY = gridTopCoord  + (gradient_block_coord / (gridBottomCoord - gridTopCoord));
 
-      int hash = permutationTable[(permutationTable[(permutationTable[gradient_globalX % 256] + gradient_globalY) % 256] + iteration) % 256];
+      int hash = permutationTable[(permutationTable[(permutationTable[gradient_globalX % 256] + gradient_globalY) % 256] + current_octave) % 256];
       gradients[gradient_block_coord] = grad_vals[hash % 4];
     }
   }
@@ -499,12 +501,12 @@ perform some kind of reduction (stream compression?) to sum the values of each p
     float ix1 = interpolate(n0, n1, sx);
 
     // Final step: Interpolate between the two resulting values, now in y
-    value = interpolate(ix0, ix1, sy)
+    value = interpolate(ix0, ix1, sy);
     cuConstTerrainGenParams.partial_sums[octaves * (pixelY * noiseMapWidth + pixelX) + current_octave] = value;
   }
 }
 
-__global__ void perlinSumReduce(int noiseMapWidth, int noiseMapHeight, int octaves, int persistence, int blockSize) {
+__global__ void perlinSumReduce(int noiseMapWidth, int noiseMapHeight, const int octaves, int persistence, int blockSize) {
 
   // Position in block
   int threadIndex = threadIdx.y * blockDim.x + threadIdx.x;
@@ -516,7 +518,7 @@ __global__ void perlinSumReduce(int noiseMapWidth, int noiseMapHeight, int octav
 
 
   // FIRST GRAB VALUES FROM PARTIAL SUMS
-  float values[octaves];
+  float values[MAX_OCTAVES];
 
   int offset = octaves * (pixelY * noiseMapWidth + pixelX);
   for (int i = 0; i < octaves; i++) values[i] = cuConstTerrainGenParams.partial_sums[offset + i];
@@ -582,12 +584,12 @@ void TerrainGen::generateTemporal(int initialGridSize, int octaves, int persiste
   dim3 threadsPerBlock(threadX, threadY, 1); // 1032 threads per block
   dim3 numBlocks(blockX, blockY, blockZ); // numBlocks = blockX * blockY * octaves
   
-  perlinTemporal<<<numBlocks, threadsPerBlock, ((blockSize + 1) * (blockSize + 1))>>(noiseMapWidth, noiseMapHeight,
+  perlinTemporal <<<numBlocks, threadsPerBlock, ((blockSize + 1) * (blockSize + 1))>>> (noiseMapWidth, noiseMapHeight,
                                                  initialGridSize, octaves, persistence,
                                                  lacunarity, blockSize);
   cudaDeviceSynchronize();
 
-  dim3 numBlocks(blockX, blockY, 1);
-  perlinSumReduce <<<numBlocks, threadsPerBlock>>> (noiseMapWidth, noiseMapHeight, octaves, persistence, blockSize);
+  dim3 numBlocksReduce(blockX, blockY, 1);
+  perlinSumReduce <<<numBlocksReduce, threadsPerBlock>>> (noiseMapWidth, noiseMapHeight, octaves, persistence, blockSize);
   cudaDeviceSynchronize();
 }
