@@ -39,6 +39,7 @@ struct GlobalConstants {
   int noiseMapWidth;
   int noiseMapHeight;
   float* noiseMapData;
+  float* partial_sums;
   short* permutation;
 
 };
@@ -68,6 +69,8 @@ TerrainGen::TerrainGen() {
   noiseMap = NULL;
   cudaDeviceNoiseMapData = NULL;
   cudaDevicePermutationTable = NULL;
+  cudaDevicePartialSums = NULL;
+  
 
 }
 
@@ -81,6 +84,7 @@ TerrainGen::~TerrainGen() {
   if (cudaDeviceNoiseMapData) {
     cudaFree(cudaDeviceNoiseMapData);
     cudaFree(cudaDevicePermutationTable);
+    cudaFree(cudaDevicePartialSums);
   }
 }
 
@@ -122,7 +126,7 @@ const NoiseMap* TerrainGen::getNoiseMap() {
     return noiseMap;
 }
 
-void TerrainGen::setup() {
+void TerrainGen::setup(int octaves) {
 
     int deviceCount = 0;
     bool isFastGPU = false;
@@ -164,6 +168,7 @@ void TerrainGen::setup() {
     // cudaMalloc and cudaMemcpy
     cudaMalloc(&cudaDeviceNoiseMapData, sizeof(float) * noiseMap->width * noiseMap->height);
     cudaMalloc(&cudaDevicePermutationTable, sizeof(short) * 256);
+    cudaMalloc(&cudaDevicePartialSums, sizeof(float) * noiseMap->width * noiseMap->height * octaves);
 
     cudaMemcpy(cudaDevicePermutationTable, permutationGlobal,
                sizeof(short) * 256, cudaMemcpyHostToDevice);
@@ -181,6 +186,7 @@ void TerrainGen::setup() {
     params.noiseMapHeight = noiseMap->height;
     params.noiseMapData = cudaDeviceNoiseMapData;
     params.permutation = cudaDevicePermutationTable;
+    params.partial_sums = cudaDevicePartialSums;
 
     cudaMemcpyToSymbol(cuConstTerrainGenParams, &params, sizeof(GlobalConstants));
 
@@ -397,7 +403,7 @@ __global__ void perlinSpatial(int noiseMapWidth, int noiseMapHeight,
 // Uses a temporal partitioning approach
 __global__ void perlinTemporal(int noiseMapWidth, int noiseMapHeight,
                        int initialGridSize, int octaves, int persistence,
-                       int lacunarity, int blockSize, int MAX_GRADIENTS) {
+                       int lacunarity, int blockSize) {
 
 /*
 ALGORITHM OUTLINE
@@ -417,13 +423,13 @@ perform some kind of reduction (stream compression?) to sum the values of each p
   int threadIndex = threadIdx.y * blockDim.x + threadIdx.x;
   int number_of_threads = blockDim.x * blockDim.y;
 
+  int pixelX = blockIdx.x * blockDim.x + threadIdx.x;
+  int pixelY = blockIdx.y * blockDim.y + threadIdx.y;
 
 
   // Figure out total number of gradients to be computed
-  int current_octave = blockIdx.x; 
-  int current_grid_size = initialGridSize / int(pow(double(lacunarity), double(current_octave)));
-
-  int number_of_gradients = (current_grid_size + 1) * (current_grid_size + 1);
+  int current_octave = blockIdx.z; 
+  int current_grid_size = int(initialGridSize / pow(double(lacunarity), double(current_octave)));
 
   // shared array of gradients
   extern __shared__ float gradients[];
@@ -438,66 +444,93 @@ perform some kind of reduction (stream compression?) to sum the values of each p
   }
   __syncthreads();
 
-  // Private array of pixels
-  int pixels_per_thread = 1 + (noiseMapWidth * noiseMapHeight) / number_of_threads;
-  float pixels[pixels_per_thread];
+  // Local possible gradient values
+  float grad_vals [4] = {M_PI / 4.f, 3.f * M_PI / 4.f, 5.f * M_PI / 4.f, 7.f * M_PI / 4.f};
 
-  // WORKING SET OF GRADIENTS?
-  // At every iteration check if any pixels need gradients outside of that 
-  // working set. Or rather find the maximum and minimum gradient index necessary for
-  // that iteration
+  // FIRST: SET UP GRADIENTS
+  int gridLeftCoord = (blockSize * blockIdx.x) / current_grid_size;
+  int gridRightCoord = ((blockSize * (blockIdx.x + 1)) / current_grid_size) + 1;
+  int gridTopCoord = (blockSize * blockIdx.y) / current_grid_size;
+  int gridBottomCoord = ((blockSize * (blockIdx.y + 1)) / current_grid_size) + 1;
 
-  // If out of gradient bounds, reload gradients from minimum index up to maximum gradient capacity
+  int gridNumber = (gridRightCoord - gridLeftCoord) * (gridBottomCoord - gridTopCoord);
+  int number_of_gradients = (gridRightCoord - gridLeftCoord + 1) * (gridRightCoord - gridLeftCoord + 1);
 
-  // This is really scuffed :( ...
+  for (int i = 0; i < number_of_gradients; i += number_of_threads) {
 
-  // Also are pixels interleaved or congruent? (Easier indexing if congruent, better shared memory usage if interleaved)
+    if (i * number_of_threads + threadIndex < number_of_gradients) {
 
-  // Then jsut do the rest same as spatial?
+      int gradient_block_coord = i * number_of_threads + threadIndex;
+      int gradient_globalX = gridLeftCoord + (gradient_block_coord % (gridRightCoord - gridLeftCoord));
+      int gradient_globalY = gridTopCoord  + (gradient_block_coord / (gridBottomCoord - gridTopCoord));
 
-
-
-
-
-  // Cool all gradients fit so just load them into shared memory
-  if (number_of_gradients < MAX_GRADIENTS) {
-
-    // FIRST SET UP ALL GRADIENTS
-    for (int i = 0; i < number_of_gradients; i += number_of_threads) {
-
-      // Make sure we are within bounds
-      if (i * number_of_threads + threadIndex < number_of_gradients) {
-
-        // Local gradient coordinates
-        int gradient_block_coord = i * number_of_threads + threadIndex;
-
-        // Global gradient coordinates
-        int gradient_globalX = gridLeftCoord + (gradient_block_coord % (gridRightCoord - gridLeftCoord));
-        int gradient_globalY = gridTopCoord  + (gradient_block_coord / (gridBottomCoord - gridTopCoord));
-
-        // Grab hash from permutation table
-        int hash = permutationTable[(permutationTable[(permutationTable[gradient_globalX % 256] + gradient_globalY) % 256] + iteration) % 256];
-
-        // Use hash to get gradient value
-        gradients[gradient_block_coord] = grad_vals[hash % 4];
-      }
+      int hash = permutationTable[(permutationTable[(permutationTable[gradient_globalX % 256] + gradient_globalY) % 256] + iteration) % 256];
+      gradients[gradient_block_coord] = grad_vals[hash % 4];
     }
-    __syncthreads();
-
-
-    
-
-
-
-
   }
-  else {  // Oh no, we can't fit all of the gradients
+  __syncthreads();
 
+  // SECOND: COMPUTE NEW VALUE
+  float value = 0;
+  if ((pixelX < noiseMapWidth) && (pixelY < noiseMapHeight)) {
+    float left = (float)(pixelX) / (float)(current_grid_size);
+    float top  = (float)(pixelY) / (float)(current_grid_size);
+
+    int XLeft = floor(left);
+    int YTop = floor(top);
+    int XRight = XLeft + 1;
+    int YBottom = YTop + 1;
+
+    float sx = left - (float)(XLeft);
+    float sy = top - (float)(YTop);
+
+    // Compute and interpolate top two corners
+    float n0 = dotGridGradient(XLeft, YTop, left, top, gridLeftCoord, gridRightCoord,
+                                gridTopCoord, (float*)(&gradients));
+    float n1 = dotGridGradient(XRight, YTop, left, top, gridLeftCoord, gridRightCoord,
+                                gridTopCoord, (float*)(&gradients));
+    float ix0 = interpolate(n0, n1, sx);
+
+    // Compute and interpolate bottomn two corners
+    n0 = dotGridGradient(XLeft, YBottom, left, top, gridLeftCoord, gridRightCoord,
+                          gridTopCoord, (float*)(&gradients));
+    n1 = dotGridGradient(XRight, YBottom, left, top, gridLeftCoord, gridRightCoord,
+                          gridTopCoord, (float*)(&gradients));
+    float ix1 = interpolate(n0, n1, sx);
+
+    // Final step: Interpolate between the two resulting values, now in y
+    value = interpolate(ix0, ix1, sy)
+    cuConstTerrainGenParams.partial_sums[octaves * (pixelY * noiseMapWidth + pixelX) + current_octave] = value;
+  }
+}
+
+__global__ void perlinSumReduce(int noiseMapWidth, int noiseMapHeight, int octaves, int persistence, int blockSize) {
+
+  // Position in block
+  int threadIndex = threadIdx.y * blockDim.x + threadIdx.x;
+  int pixelX = blockIdx.x * blockDim.x + threadIdx.x;
+  int pixelY = blockIdx.y * blockDim.y + threadIdx.y;
+
+  // Number of threads
+  int number_of_threads = blockDim.x * blockDim.y;
+
+
+  // FIRST GRAB VALUES FROM PARTIAL SUMS
+  float values[octaves];
+
+  int offset = octaves * (pixelY * noiseMapWidth + pixelX);
+  for (int i = 0; i < octaves; i++) values[i] = cuConstTerrainGenParams.partial_sums[offset + i];
+
+  float final_value = 0;
+  float amp = 1;
+
+  for (int i = 0; i < octaves; i++) {
+    final_value += values[i] * amp;
+    amp *= persistence;
   }
 
-  
-
-
+  final_value = CLAMP(final_value, -1.0f, 1.0f);
+  cuConstTerrainGenParams.noiseMapData[pixelY * noiseMapWidth + pixelX] = final_value;
 
 }
 
@@ -542,17 +575,19 @@ void TerrainGen::generateTemporal(int initialGridSize, int octaves, int persiste
   const int threadX = 32;
   const int threadY = 32;
   const int blockSize = 32;
-  const int blockX = octaves;
-  const int blockY = 1;
+  const int blockX = (noiseMapWidth + threadX - 1) / threadX;
+  const int blockY = (noiseMapHeight + threadY - 1) / threadY;
+  const int blockZ = octaves;
 
   dim3 threadsPerBlock(threadX, threadY, 1); // 1032 threads per block
-  dim3 numBlocks(blockX, blockY, 1); // numBlocks = octaves
+  dim3 numBlocks(blockX, blockY, blockZ); // numBlocks = blockX * blockY * octaves
   
-  // Allocate as much space as there is to gradients 
-  int MAX_GRADIENTS = 11744;
-
-  perlinTemporal<<<numBlocks, threadsPerBlock, MAX_GRADIENTS>>>(noiseMapWidth, noiseMapHeight,
+  perlinTemporal<<<numBlocks, threadsPerBlock, ((blockSize + 1) * (blockSize + 1))>>(noiseMapWidth, noiseMapHeight,
                                                  initialGridSize, octaves, persistence,
-                                                 lacunarity, blockSize, MAX_GRADIENTS);
+                                                 lacunarity, blockSize);
+  cudaDeviceSynchronize();
+
+  dim3 numBlocks(blockX, blockY, 1);
+  perlinSumReduce <<<numBlocks, threadsPerBlock>>> (noiseMapWidth, noiseMapHeight, octaves, persistence, blockSize);
   cudaDeviceSynchronize();
 }

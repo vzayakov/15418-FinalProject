@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
 
   // Allocate noise map and set up all of the things
   generator->allocOutputNoiseMap(noiseMapWidth, noiseMapHeight);
-  generator->setup();
+  generator->setup(octaves);
   // Generate the noise map, using Spatial partitioning
   const auto compute_start = std::chrono::steady_clock::now();
   generator->generateSpatial(scale, octaves, persistence, lacunarity);

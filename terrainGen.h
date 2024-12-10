@@ -16,6 +16,7 @@ class TerrainGen {
   
     NoiseMap* noiseMap; // CPU noise map
     float* cudaDeviceNoiseMapData; // GPU noise map
+    float* cudaDevicePartialSums;
     short* cudaDevicePermutationTable; // Permutation table
   
   public:
@@ -25,7 +26,7 @@ class TerrainGen {
 
     const NoiseMap* getNoiseMap(); // Copy noise map from device to CPU
 
-    void setup(); // Initial setup function
+    void setup(int octaves); // Initial setup function
 
     void allocOutputNoiseMap(int width, int height); // Allocate CPU noise map
 
