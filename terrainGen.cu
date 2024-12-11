@@ -326,8 +326,8 @@ __global__ void perlinSpatial(int noiseMapWidth, int noiseMapHeight,
         int gradient_block_coord = i * number_of_threads + threadIndex;
 
         // Global gradient coordinates
-        int gradient_globalX = gridLeftCoord + (gradient_block_coord % (gridRightCoord - gridLeftCoord));
-        int gradient_globalY = gridTopCoord  + (gradient_block_coord / (gridBottomCoord - gridTopCoord));
+        int gradient_globalX = gridLeftCoord + (gradient_block_coord % (gridRightCoord - gridLeftCoord + 1));
+        int gradient_globalY = gridTopCoord  + (gradient_block_coord / (gridRightCoord - gridLeftCoord + 1));
 
         // Grab hash from permutation table
         int hash = permutationTable[(permutationTable[(permutationTable[gradient_globalX % 256] + gradient_globalY) % 256] + iteration) % 256];
