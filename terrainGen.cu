@@ -235,7 +235,7 @@ __device__ __inline__ float dotGridGradient(int ix, int iy, float x, float y,
                       float* gradients) {
 
   // Get gradient from integer coordinates
-  int index = (iy - gridTopCoord) * (gridRightCoord - gridLeftCoord) + (ix - gridLeftCoord);
+  int index = (iy - gridTopCoord) * (gridRightCoord - gridLeftCoord + 1) + (ix - gridLeftCoord);
   float gradAngle = gradients[index];
   
   vector2 gradient;
@@ -254,8 +254,8 @@ __device__ __inline__ float dotGridGradient(int ix, int iy, float x, float y,
 // Kernel that generates the Perlin noise map on the GPU
 // Uses a spatial partitioning approach
 __global__ void perlinSpatial(int noiseMapWidth, int noiseMapHeight,
-                       int initialGridSize, int octaves, int persistence,
-                       int lacunarity, int blockSize) {
+                       int initialGridSize, int octaves, float persistence,
+                       float lacunarity, int blockSize) {
 
   // get global and local thread indices
   int threadIndex = threadIdx.y * blockDim.x + threadIdx.x;
@@ -404,8 +404,8 @@ __global__ void perlinSpatial(int noiseMapWidth, int noiseMapHeight,
 // Kernel that generates the Perlin noise map on the GPU
 // Uses a temporal partitioning approach
 __global__ void perlinTemporal(int noiseMapWidth, int noiseMapHeight,
-                       int initialGridSize, int octaves, int persistence,
-                       int lacunarity, int blockSize) {
+                       int initialGridSize, int octaves, float persistence,
+                       float lacunarity, int blockSize) {
 
 /*
 ALGORITHM OUTLINE
@@ -506,7 +506,7 @@ perform some kind of reduction (stream compression?) to sum the values of each p
   }
 }
 
-__global__ void perlinSumReduce(int noiseMapWidth, int noiseMapHeight, const int octaves, int persistence, int blockSize) {
+__global__ void perlinSumReduce(int noiseMapWidth, int noiseMapHeight, const int octaves, float persistence, int blockSize) {
 
   // Position in block
   int threadIndex = threadIdx.y * blockDim.x + threadIdx.x;
@@ -545,8 +545,8 @@ __global__ void perlinSumReduce(int noiseMapWidth, int noiseMapHeight, const int
 
 // Main function that generates the terrain. Makes all of the necessary
 // kernel calls, for spatial partitioning
-void TerrainGen::generateSpatial(int initialGridSize, int octaves, int persistence, 
-                          int lacunarity) {
+void TerrainGen::generateSpatial(int initialGridSize, int octaves, float persistence, 
+                          float lacunarity) {
   // Call perlinSpatial() here
 
   int noiseMapWidth = noiseMap->width;
@@ -562,14 +562,14 @@ void TerrainGen::generateSpatial(int initialGridSize, int octaves, int persisten
   dim3 numBlocks(blockX, blockY, 1);
   perlinSpatial<<<numBlocks, threadsPerBlock,  ((blockSize + 1) * (blockSize + 1))>>>(noiseMapWidth, noiseMapHeight,
                                                                              initialGridSize, octaves, persistence, lacunarity,
-                                                                             blockSize);  gpuErrChk();
-  cudaDeviceSynchronize(); gpuErrChk();
+                                                                             blockSize);  
+  cudaDeviceSynchronize(); 
 }
 
 // Main function that generates the terrain. Makes all of the necessary
 // kernel calls, for temporal partitioning
-void TerrainGen::generateTemporal(int initialGridSize, int octaves, int persistence, 
-                          int lacunarity) {
+void TerrainGen::generateTemporal(int initialGridSize, int octaves, float persistence, 
+                          float lacunarity) {
   // Call perlinTemporal() here
 
   int noiseMapWidth = noiseMap->width;
@@ -587,12 +587,10 @@ void TerrainGen::generateTemporal(int initialGridSize, int octaves, int persiste
   
   perlinTemporal <<<numBlocks, threadsPerBlock, ((blockSize + 1) * (blockSize + 1))>>> (noiseMapWidth, noiseMapHeight,
                                                  initialGridSize, octaves, persistence,
-                                                 lacunarity, blockSize);  gpuErrChk();
-  cudaDeviceSynchronize(); gpuErrChk();
+                                                 lacunarity, blockSize);  
+  cudaDeviceSynchronize(); 
 
-  /*
   dim3 numBlocksReduce(blockX, blockY, 1);
-  perlinSumReduce <<<numBlocksReduce, threadsPerBlock>>> (noiseMapWidth, noiseMapHeight, octaves, persistence, blockSize);  gpuErrChk();
-  cudaDeviceSynchronize(); gpuErrChk();
-  */
+  perlinSumReduce <<<numBlocksReduce, threadsPerBlock>>> (noiseMapWidth, noiseMapHeight, octaves, persistence, blockSize); 
+  cudaDeviceSynchronize();
 }

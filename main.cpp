@@ -62,8 +62,8 @@ int main(int argc, char** argv) {
   int noiseMapHeight = 1150;
   // Additional input parameters
   int scale = 300;
-  int persistence = 1;
-  int lacunarity = 1;
+  float persistence = 1;
+  float lacunarity = 1;
   int octaves = 1;
   std::string outputFilename = "noisemap.txt";
 
@@ -99,10 +99,10 @@ int main(int argc, char** argv) {
         octaves = atoi(optarg);
         break;
       case 'p':
-        persistence = atoi(optarg);
+        persistence = atof(optarg);
         break;
       case 'l':
-        lacunarity = atoi(optarg);
+        lacunarity = atof(optarg);
         break;
       case '?':
       default:
@@ -126,11 +126,12 @@ int main(int argc, char** argv) {
   generator->allocOutputNoiseMap(noiseMapWidth, noiseMapHeight);
   generator->setup(octaves);
   // Generate the noise map, using Spatial partitioning
-  const auto compute_start_tp = std::chrono::steady_clock::now();
-  generator->generateTemporal(scale, octaves, persistence, lacunarity);
-  const double compute_time_tp = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start_tp).count();
-  std::cout << "Temporal Computation time (sec): " << compute_time_tp << '\n';
+  // const auto compute_start_tp = std::chrono::steady_clock::now();
+  // generator->generateTemporal(scale, octaves, persistence, lacunarity);
+  // const double compute_time_tp = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start_tp).count();
+  // std::cout << "Temporal Computation time (sec): " << compute_time_tp << '\n';
 
+  // generator->setup(octaves);
   const auto compute_start_sp = std::chrono::steady_clock::now();
   generator->generateSpatial(scale, octaves, persistence, lacunarity);
   const double compute_time_sp = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start_sp).count();
