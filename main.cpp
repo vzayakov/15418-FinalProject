@@ -126,10 +126,10 @@ int main(int argc, char** argv) {
   generator->allocOutputNoiseMap(noiseMapWidth, noiseMapHeight);
   generator->setup(octaves);
   // Generate the noise map, using Spatial partitioning
-  // const auto compute_start_tp = std::chrono::steady_clock::now();
-  // generator->generateTemporal(scale, octaves, persistence, lacunarity);
-  // const double compute_time_tp = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start_tp).count();
-  // std::cout << "Temporal Computation time (sec): " << compute_time_tp << '\n';
+  const auto compute_start_tp = std::chrono::steady_clock::now();
+  generator->generateTemporal(scale, octaves, persistence, lacunarity);
+  const double compute_time_tp = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start_tp).count();
+  std::cout << "Temporal Computation time (sec): " << compute_time_tp << '\n';
 
   // generator->setup(octaves);
   const auto compute_start_sp = std::chrono::steady_clock::now();

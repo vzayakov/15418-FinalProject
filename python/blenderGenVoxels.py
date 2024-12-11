@@ -9,15 +9,15 @@ randMap = [[8, 6, 8, 6, 1],
 '''
 
 genMap = list()
-fd = open("/Users/Yannis/Desktop/15418/15418-FinalProject/noisemap.txt", "r")
+fd = open("/Users/victorz/Desktop/15418-FinalProject/test1.txt", "r")
 next(fd) # Skip the first line
 for line in fd:
     linearray = [round((12 * (float(n) + 1))) for n in line.split()]
     genMap.append(linearray)
 
 # Add cubes in the scene based on map values
-for x in range(50):
-    for y in range(50):
+for x in range(20):
+    for y in range(20):
 
         z = genMap[x][y]
         bpy.ops.mesh.primitive_cube_add(location=(2*x, 2*y, 2*z))
