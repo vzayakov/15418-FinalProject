@@ -392,7 +392,7 @@ __global__ void perlinSpatial(int noiseMapWidth, int noiseMapHeight,
     ////////////////////////////////////////
     pixelValues[threadIndex] += (value * amp);
     // Update the grid size and amplitude
-    gridSize = gridSize / lacunarity;
+    gridSize = fmaxf((gridSize / lacunarity), 3);
     amp = amp * persistence;
   }
   // Clamping to [-1, 1]
@@ -431,7 +431,7 @@ perform some kind of reduction (stream compression?) to sum the values of each p
 
   // Figure out total number of gradients to be computed
   int current_octave = blockIdx.z; 
-  int current_grid_size = int(initialGridSize / pow(double(lacunarity), double(current_octave)));
+  int current_grid_size = fmaxf(int(initialGridSize / pow(double(lacunarity), double(current_octave))), 3);
 
   // shared array of gradients
   extern __shared__ float gradients[];
@@ -520,20 +520,21 @@ __global__ void perlinSumReduce(int noiseMapWidth, int noiseMapHeight, const int
   // FIRST GRAB VALUES FROM PARTIAL SUMS
   float values[MAX_OCTAVES];
 
-  int offset = octaves * (pixelY * noiseMapWidth + pixelX);
-  for (int i = 0; i < octaves; i++) values[i] = cuConstTerrainGenParams.partial_sums[offset + i];
+  if ((pixelX < noiseMapWidth) && (pixelY < noiseMapHeight)) {
+    int offset = octaves * (pixelY * noiseMapWidth + pixelX);
+    for (int i = 0; i < octaves; i++) values[i] = cuConstTerrainGenParams.partial_sums[offset + i];
 
-  float final_value = 0;
-  float amp = 1;
+    float final_value = 0;
+    float amp = 1;
 
-  for (int i = 0; i < octaves; i++) {
-    final_value += values[i] * amp;
-    amp *= persistence;
+    for (int i = 0; i < octaves; i++) {
+      final_value += values[i] * amp;
+      amp *= persistence;
+    }
+
+    final_value = CLAMP(final_value, -1.0f, 1.0f);
+    cuConstTerrainGenParams.noiseMapData[pixelY * noiseMapWidth + pixelX] = final_value;
   }
-
-  final_value = CLAMP(final_value, -1.0f, 1.0f);
-  cuConstTerrainGenParams.noiseMapData[pixelY * noiseMapWidth + pixelX] = final_value;
-
 }
 
 // NOTES
@@ -561,8 +562,8 @@ void TerrainGen::generateSpatial(int initialGridSize, int octaves, int persisten
   dim3 numBlocks(blockX, blockY, 1);
   perlinSpatial<<<numBlocks, threadsPerBlock,  ((blockSize + 1) * (blockSize + 1))>>>(noiseMapWidth, noiseMapHeight,
                                                                              initialGridSize, octaves, persistence, lacunarity,
-                                                                             blockSize);
-  cudaDeviceSynchronize();
+                                                                             blockSize);  gpuErrChk();
+  cudaDeviceSynchronize(); gpuErrChk();
 }
 
 // Main function that generates the terrain. Makes all of the necessary
@@ -586,10 +587,12 @@ void TerrainGen::generateTemporal(int initialGridSize, int octaves, int persiste
   
   perlinTemporal <<<numBlocks, threadsPerBlock, ((blockSize + 1) * (blockSize + 1))>>> (noiseMapWidth, noiseMapHeight,
                                                  initialGridSize, octaves, persistence,
-                                                 lacunarity, blockSize);
-  cudaDeviceSynchronize();
+                                                 lacunarity, blockSize);  gpuErrChk();
+  cudaDeviceSynchronize(); gpuErrChk();
 
+  /*
   dim3 numBlocksReduce(blockX, blockY, 1);
-  perlinSumReduce <<<numBlocksReduce, threadsPerBlock>>> (noiseMapWidth, noiseMapHeight, octaves, persistence, blockSize);
-  cudaDeviceSynchronize();
+  perlinSumReduce <<<numBlocksReduce, threadsPerBlock>>> (noiseMapWidth, noiseMapHeight, octaves, persistence, blockSize);  gpuErrChk();
+  cudaDeviceSynchronize(); gpuErrChk();
+  */
 }
