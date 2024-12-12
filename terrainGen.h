@@ -9,6 +9,7 @@
 #endif
 
 struct NoiseMap;
+struct ColorMap;
 
 class TerrainGen {
 

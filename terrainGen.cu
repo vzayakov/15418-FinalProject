@@ -17,6 +17,8 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <driver_functions.h>
+#include <curand.h>
+#include <curand_kernel.h>
 
 #define MAX_OCTAVES 128
 
@@ -212,11 +214,11 @@ void TerrainGen::setup(int octaves) {
     params.noiseMapWidth = noiseMap->width;
     params.noiseMapHeight = noiseMap->height;
     params.colorMapWidth = colorMap->width;
-    params.colorMapHeight = colorMap-height;
+    params.colorMapHeight = colorMap->height;
     params.noiseMapData = cudaDeviceNoiseMapData;
     params.permutation = cudaDevicePermutationTable;
     params.partial_sums = cudaDevicePartialSums;
-    params.colorMapData = cudaDeviceColorMapData;
+    params.colorMapData = (color *)(cudaDeviceColorMapData);
 
     cudaMemcpyToSymbol(cuConstTerrainGenParams, &params, sizeof(GlobalConstants));
 
@@ -622,12 +624,12 @@ __global__ void voronoi(int colorMapWidth, int colorMapHeight, int blockSize, in
     pc.y = pointY;
     pc.clr = (color)((pointY * gridSize + pointX) % 7); // 7 possible colors
     // Write to shared memory
-    pointCoordinates[i] = pc;
+    pointCoordinates[threadIndex] = pc;
 
   }
   __syncthreads();
 
-  if ((pixelX < noiseMapWidth) && (pixelY < noiseMapHeight)) {
+  if ((pixelX < colorMapWidth) && (pixelY < colorMapHeight)) {
 
     // Find 1st nearest point to pixel
     int nearestPtIndex = -1;
@@ -646,8 +648,7 @@ __global__ void voronoi(int colorMapWidth, int colorMapHeight, int blockSize, in
 
     // Get color of 1st nearest point and write it to global memory
     pointCoord pc = pointCoordinates[nearestPtIndex];
-    nearestColor = pc.clr;
-    cuConstTerrainGenParams.colorMapData[pixelY * colorMapWidth + pixelX] = nearestColor;
+    cuConstTerrainGenParams.colorMapData[pixelY * colorMapWidth + pixelX] = pc.clr;
 
   }
 }

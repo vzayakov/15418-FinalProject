@@ -1,8 +1,11 @@
 #ifndef __REF_SERIAL_H__
 #define __REF_SERIAL_H__
 
-  struct NoiseMap;
-  struct vector2;
+
+  // struct NoiseMap;
+  // struct vector2;
+  #include "util.h"
+  
 
   float interpolate(float a0, float a1, float w);
 

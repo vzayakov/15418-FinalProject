@@ -14,6 +14,7 @@
 
 #include "terrainGen.h"
 #include "noiseMap.h"
+#include "colorMap.h"
 #include "refSerial.h"
 
 
@@ -55,6 +56,30 @@ void writeNoiseMap(TerrainGen* generator, const int dimX, const int dimY,
 
 }
 
+
+void writeVoronoi(TerrainGen* generator, const int dimX, const int dimY,
+                  std::string outputFilename) {
+
+  const ColorMap* colorMap = generator->getColorMap();
+
+  std::ofstream outColorMap(outputFilename, std::fstream::out);
+  if (!outColorMap) {
+    std::cerr << "Unable to open file: " << outputFilename << '\n';
+    exit(EXIT_FAILURE);
+  }
+
+  outColorMap << dimX << ' ' << dimY << '\n'; // Write dimensions at top of file
+  for (int i = 0; i < dimY; i++) {
+    for (int j = 0; j < dimX; j++) {
+      outColorMap << colorMap->data[i * dimX + j] << ' ';
+    }
+    outColorMap << '\n';
+  }
+
+  outColorMap.close();
+
+}
+
 int main(int argc, char** argv) {
 
   // Can modify this to have noise maps of different sizes
@@ -80,6 +105,7 @@ int main(int argc, char** argv) {
       {"filename", 0, 0, 'f'},
       {0 ,0, 0, 0}
   };
+
   // Switch statement for command line arguments
   while ((opt = getopt_long(argc, argv, "f:h:w:s:o:p:l:?", long_options, NULL)) != EOF) {
       switch (opt) {
@@ -118,12 +144,12 @@ int main(int argc, char** argv) {
   } 
 
   // Instantiate the class object
-
   TerrainGen* generator = new TerrainGen();
 
 
   // Allocate noise map and set up all of the things
   generator->allocOutputNoiseMap(noiseMapWidth, noiseMapHeight);
+  generator->allocOutputColorMap(noiseMapWidth, noiseMapHeight);
   generator->setup(octaves);
   // Generate the noise map, using Spatial partitioning
   const auto compute_start_tp = std::chrono::steady_clock::now();
@@ -138,6 +164,8 @@ int main(int argc, char** argv) {
   std::cout << "Spatial Computation time (sec): " << compute_time_sp << '\n';
 
 
+  std::cout << "Voronoi Experiment\n";
+  generator->generateVoronoi(300);
   // const auto serial_start = std::chrono::steady_clock::now();
   // NoiseMap * noise_serial = refSerialMain(scale, persistence, lacunarity, octaves);
   // const double serial_time = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - serial_start).count();
@@ -146,6 +174,8 @@ int main(int argc, char** argv) {
 
   // Write the generated noise map to a .txt file
   writeNoiseMap(generator, noiseMapWidth, noiseMapHeight, outputFilename);
+
+  writeVoronoi(generator, noiseMapWidth, noiseMapHeight, "voronoi.txt");
 
   delete generator;
   return 0;
