@@ -15,7 +15,9 @@ class TerrainGen {
   private:
   
     NoiseMap* noiseMap; // CPU noise map
+    ColorMap* colorMap;
     float* cudaDeviceNoiseMapData; // GPU noise map
+    float* cudaDeviceColorMapData; // GPU color map (voronoi)
     float* cudaDevicePartialSums;
     short* cudaDevicePermutationTable; // Permutation table
   
@@ -26,7 +28,11 @@ class TerrainGen {
 
     const NoiseMap* getNoiseMap(); // Copy noise map from device to CPU
 
+    const ColorMap* getColorMap(); // Copy color map from device to CPU
+
     void setup(int octaves); // Initial setup function
+
+    void allocOutputColorMap(int width, int height); // Allocate CPU color map
 
     void allocOutputNoiseMap(int width, int height); // Allocate CPU noise map
 
@@ -37,6 +43,8 @@ class TerrainGen {
     
     void generateTemporal(int initialGridSize, int octaves, float persistence, 
                           float lacunarity); // Run perlin kernel, temporal
+    
+    void generateVoronoi(int gridSize); // Run Voronoi noise generation kernel
 
 };
 

@@ -1,5 +1,5 @@
-#ifndef  __HEIGHTMAP_H__
-#define  __HEIGHTMAP_H__
+#ifndef  __NOISEMAP_H__
+#define  __NOISEMAP_H__
 
 // Noise Map struct, for use on the CPU
 struct NoiseMap {
@@ -14,7 +14,7 @@ struct NoiseMap {
 
         int numPixels = width * height;
         float* ptr = data;
-        for (int i=0; i<numPixels; i++) {
+        for (int i = 0; i < numPixels; i++) {
             ptr[0] = h;
             ptr += 1;
         }
