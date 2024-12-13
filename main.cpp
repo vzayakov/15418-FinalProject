@@ -13,8 +13,6 @@
 
 
 #include "terrainGen.h"
-#include "noiseMap.h"
-#include "colorMap.h"
 #include "refSerial.h"
 
 
