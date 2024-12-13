@@ -10,9 +10,6 @@
 #include <cstdlib>
 
 #include "terrainGen.h"
-#include "noiseMap.h"
-#include "colorMap.h"
-#include "util.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -48,7 +45,7 @@ struct GlobalConstants {
   float* noiseMapData;
   float* partial_sums;
   short* permutation;
-  color* colorMapData;
+  Color* colorMapData;
 
 };
 
@@ -148,7 +145,7 @@ const ColorMap* TerrainGen::getColorMap() {
   printf("Copying color map data from device\n");
 
   cudaMemcpy(colorMap->data, cudaDeviceColorMapData,
-             sizeof(color) * colorMap->width * colorMap -> height,
+             sizeof(Color) * colorMap->width * colorMap -> height,
              cudaMemcpyDeviceToHost);
   
   return colorMap;
@@ -197,7 +194,7 @@ void TerrainGen::setup(int octaves) {
     cudaMalloc(&cudaDeviceNoiseMapData, sizeof(float) * noiseMap->width * noiseMap->height);
     cudaMalloc(&cudaDevicePermutationTable, sizeof(short) * 256);
     cudaMalloc(&cudaDevicePartialSums, sizeof(float) * noiseMap->width * noiseMap->height * octaves);
-    cudaMalloc(&cudaDeviceColorMapData, sizeof(color) * noiseMap->width * noiseMap->height);
+    cudaMalloc(&cudaDeviceColorMapData, sizeof(Color) * noiseMap->width * noiseMap->height);
 
     cudaMemcpy(cudaDevicePermutationTable, permutationGlobal,
                sizeof(short) * 256, cudaMemcpyHostToDevice);
@@ -218,7 +215,7 @@ void TerrainGen::setup(int octaves) {
     params.noiseMapData = cudaDeviceNoiseMapData;
     params.permutation = cudaDevicePermutationTable;
     params.partial_sums = cudaDevicePartialSums;
-    params.colorMapData = (color *)(cudaDeviceColorMapData);
+    params.colorMapData = cudaDeviceColorMapData;
 
     cudaMemcpyToSymbol(cuConstTerrainGenParams, &params, sizeof(GlobalConstants));
 
@@ -622,7 +619,7 @@ __global__ void voronoi(int colorMapWidth, int colorMapHeight, int blockSize, in
     int pointY = (grid_globalY * gridSize) + (int)((curand_uniform(&state) * gridSize));
     pc.x = pointX;
     pc.y = pointY;
-    pc.clr = (color)((pointY * gridSize + pointX) % 7); // 7 possible colors
+    pc.clr = (Color)((abs(pointY * gridSize + pointX)) % 7); // 7 possible colors
     // Write to shared memory
     pointCoordinates[threadIndex] = pc;
 
@@ -726,6 +723,6 @@ void TerrainGen::generateVoronoi(int gridSize) {
   dim3 threadsPerBlock(threadX, threadY, 1); // 1032 threads per block
   dim3 numBlocks(blockX, blockY, 1); // numBlocks = blockX * blockY
 
-  voronoi <<<numBlocks, threadsPerBlock>>>(noiseMapWidth, noiseMapHeight, blockSize, gridSize);
-  cudaDeviceSynchronize();
+  voronoi <<<numBlocks, threadsPerBlock>>>(noiseMapWidth, noiseMapHeight, blockSize, gridSize); gpuErrChk();
+  cudaDeviceSynchronize(); gpuErrChk();
 }

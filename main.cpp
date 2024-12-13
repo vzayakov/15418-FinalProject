@@ -151,18 +151,46 @@ int main(int argc, char** argv) {
   generator->allocOutputNoiseMap(noiseMapWidth, noiseMapHeight);
   generator->allocOutputColorMap(noiseMapWidth, noiseMapHeight);
   generator->setup(octaves);
-  // Generate the noise map, using Spatial partitioning
-  const auto compute_start_tp = std::chrono::steady_clock::now();
-  generator->generateTemporal(scale, octaves, persistence, lacunarity);
-  const double compute_time_tp = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start_tp).count();
-  std::cout << "Temporal Computation time (sec): " << compute_time_tp << '\n';
+
+  // Taking the average of 100 temporal runs
+  double temporalTimes[100]; // Array for storing runtimes of temporal runs
+
+  for (int i = 0; i < 100; i++) {
+
+    // Generate the noise map, using Temporal partitioning
+    const auto compute_start_tp = std::chrono::steady_clock::now();
+    generator->generateTemporal(scale, octaves, persistence, lacunarity);
+    const double compute_time_tp = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start_tp).count();
+    temporalTimes[i] = compute_time_tp;
+  }
+  
+  double temporalAverageTime = 0;
+  for (int i = 0; i < 100; i++) {
+    temporalAverageTime += temporalTimes[i];
+  }
+  temporalAverageTime /= 100.0;
+  std::cout << "Average Temporal Computation Time (milliseconds): " << (temporalAverageTime * 1000.0) << '\n';
 
   // generator->setup(octaves);
-  const auto compute_start_sp = std::chrono::steady_clock::now();
-  generator->generateSpatial(scale, octaves, persistence, lacunarity);
-  const double compute_time_sp = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start_sp).count();
-  std::cout << "Spatial Computation time (sec): " << compute_time_sp << '\n';
+  
+  // Taking the average of 100 spatial runs
+  double spatialTimes[100]; // Array for storing runtimes of spatial runs
 
+  for (int i = 0; i < 100; i++) {
+
+    const auto compute_start_sp = std::chrono::steady_clock::now();
+    generator->generateSpatial(scale, octaves, persistence, lacunarity);
+    const double compute_time_sp = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - compute_start_sp).count();
+    spatialTimes[i] = compute_time_sp;
+
+  }
+
+  double spatialAverageTime = 0;
+  for (int i = 0; i < 100; i++) {
+    spatialAverageTime += spatialTimes[i];
+  }
+  spatialAverageTime /= 100.0;
+  std::cout << "Average Spatial Computation Time (milliseconds): " << (spatialAverageTime * 1000.0) << '\n';
 
   std::cout << "Voronoi Experiment\n";
   generator->generateVoronoi(300);

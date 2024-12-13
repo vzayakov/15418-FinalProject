@@ -12,7 +12,7 @@ typedef struct {
 } vector2;
 
 // Color enum for color map
-enum color {
+typedef enum color {
   BLANK = -1,
   RED = 0,
   GREEN = 1,
@@ -21,7 +21,7 @@ enum color {
   YELLOW = 4,
   PURPLE = 5,
   WHITE = 6
-};
+} Color;
 
 // Voronoi point coordinate struct
 typedef struct {

@@ -8,8 +8,8 @@
 #define uint unsigned int
 #endif
 
-struct NoiseMap;
-struct ColorMap;
+#include "noiseMap.h"
+#include "colorMap.h"
 
 class TerrainGen {
 
@@ -18,7 +18,7 @@ class TerrainGen {
     NoiseMap* noiseMap; // CPU noise map
     ColorMap* colorMap;
     float* cudaDeviceNoiseMapData; // GPU noise map
-    float* cudaDeviceColorMapData; // GPU color map (voronoi)
+    Color* cudaDeviceColorMapData; // GPU color map (voronoi)
     float* cudaDevicePartialSums;
     short* cudaDevicePermutationTable; // Permutation table
   

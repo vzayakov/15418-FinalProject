@@ -9,13 +9,13 @@ struct ColorMap {
   ColorMap(int w, int h) {
     width = w;
     height = h;
-    data = new color[width * height];
+    data = new Color[width * height];
   }
 
   void clear() {
 
     int numPixels = width * height;
-    color* ptr = data;
+    Color* ptr = data;
     for (int i = 0; i < numPixels; i++) {
       ptr[0] = BLANK;
       ptr += 1;
@@ -24,7 +24,7 @@ struct ColorMap {
 
   int width;
   int height;
-  color* data;
+  Color* data;
 };
 
 #endif
