@@ -2,9 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import skimage.color
 
-'''
+
 genMap = list()
-fd = open("/Users/victorz/Desktop/15418-FinalProject/octave.txt", "r")
+fd = open("/Users/victorz/Desktop/15418-FinalProject/test.txt", "r")
 next(fd) # Skip the first line
 for line in fd:
     linearray = [(0.5 * (float(n) + 1)) for n in line.split()]
@@ -14,8 +14,9 @@ image_data = np.array(genMap, dtype="float")
 plt.imshow(image_data, interpolation='nearest')
 plt.axis('off')
 plt.savefig("heightmap.png", bbox_inches='tight', pad_inches=0)
-plt.show() '''
+plt.show()
 
+'''
 voronoi = list()
 fd = open("/Users/victorz/Desktop/15418-FinalProject/voronoi_biome.txt", "r")
 next(fd) # Skip the first line
@@ -47,3 +48,4 @@ plt.imshow(image_data, interpolation='nearest')
 plt.axis('off')
 plt.savefig("voronoi2dist.png", bbox_inches='tight', pad_inches=0)
 plt.show()
+'''

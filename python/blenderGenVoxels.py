@@ -9,7 +9,7 @@ randMap = [[8, 6, 8, 6, 1],
 '''
 
 genMap = list()
-fd = open("/Users/victorz/Desktop/15418-FinalProject/test1.txt", "r")
+fd = open("/Users/victorz/Desktop/15418-FinalProject/test.txt", "r")
 next(fd) # Skip the first line
 for line in fd:
     linearray = [round((12 * (float(n) + 1))) for n in line.split()]
