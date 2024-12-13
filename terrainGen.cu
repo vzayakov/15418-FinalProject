@@ -40,12 +40,12 @@ struct GlobalConstants {
 
   int noiseMapWidth;
   int noiseMapHeight;
-  int colorMapWidth;
-  int colorMapHeight;
+  int biomeMapWidth;
+  int biomeMapHeight;
   float* noiseMapData;
   float* partial_sums;
   short* permutation;
-  Color* colorMapData;
+  biomeData* biomeMapData;
 
 };
 
@@ -72,9 +72,9 @@ inline void gpuAssert(const char *file, int line, bool abort=true)
 TerrainGen::TerrainGen() {
 
   noiseMap = NULL;
-  colorMap = NULL;
+  biomeMap = NULL;
   cudaDeviceNoiseMapData = NULL;
-  cudaDeviceColorMapData = NULL;
+  cudaDeviceBiomeMapData = NULL;
   cudaDevicePermutationTable = NULL;
   cudaDevicePartialSums = NULL;
 
@@ -87,15 +87,15 @@ TerrainGen::~TerrainGen() {
     delete noiseMap;
   }
 
-  if (colorMap) {
-    delete colorMap;
+  if (biomeMap) {
+    delete biomeMap;
   }
 
   if (cudaDeviceNoiseMapData) {
     cudaFree(cudaDeviceNoiseMapData);
     cudaFree(cudaDevicePermutationTable);
     cudaFree(cudaDevicePartialSums);
-    cudaFree(cudaDeviceColorMapData);
+    cudaFree(cudaDeviceBiomeMapData);
   }
 }
 
@@ -137,18 +137,18 @@ const NoiseMap* TerrainGen::getNoiseMap() {
     return noiseMap;
 }
 
-const ColorMap* TerrainGen::getColorMap() {
+const BiomeMap* TerrainGen::getBiomeMap() {
 
-  // Copy contents of the generated colorMap from device memory
-  // before we expose the colorMap object to the caller
+  // Copy contents of the generated biomeMap from device memory
+  // before we expose the biomeMap object to the caller
 
-  printf("Copying color map data from device\n");
+  printf("Copying biome map data from device\n");
 
-  cudaMemcpy(colorMap->data, cudaDeviceColorMapData,
-             sizeof(Color) * colorMap->width * colorMap -> height,
+  cudaMemcpy(biomeMap->data, cudaDeviceBiomeMapData,
+             sizeof(biomeData) * biomeMap->width * biomeMap -> height,
              cudaMemcpyDeviceToHost);
   
-  return colorMap;
+  return biomeMap;
 }
 
 void TerrainGen::setup(int octaves) {
@@ -194,7 +194,7 @@ void TerrainGen::setup(int octaves) {
     cudaMalloc(&cudaDeviceNoiseMapData, sizeof(float) * noiseMap->width * noiseMap->height);
     cudaMalloc(&cudaDevicePermutationTable, sizeof(short) * 256);
     cudaMalloc(&cudaDevicePartialSums, sizeof(float) * noiseMap->width * noiseMap->height * octaves);
-    cudaMalloc(&cudaDeviceColorMapData, sizeof(Color) * noiseMap->width * noiseMap->height);
+    cudaMalloc(&cudaDeviceBiomeMapData, sizeof(biomeData) * biomeMap->width * biomeMap->height);
 
     cudaMemcpy(cudaDevicePermutationTable, permutationGlobal,
                sizeof(short) * 256, cudaMemcpyHostToDevice);
@@ -210,12 +210,12 @@ void TerrainGen::setup(int octaves) {
     GlobalConstants params;
     params.noiseMapWidth = noiseMap->width;
     params.noiseMapHeight = noiseMap->height;
-    params.colorMapWidth = colorMap->width;
-    params.colorMapHeight = colorMap->height;
+    params.biomeMapWidth = biomeMap->width;
+    params.biomeMapHeight = biomeMap->height;
     params.noiseMapData = cudaDeviceNoiseMapData;
     params.permutation = cudaDevicePermutationTable;
     params.partial_sums = cudaDevicePartialSums;
-    params.colorMapData = cudaDeviceColorMapData;
+    params.biomeMapData = cudaDeviceBiomeMapData;
 
     cudaMemcpyToSymbol(cuConstTerrainGenParams, &params, sizeof(GlobalConstants));
 
@@ -234,14 +234,14 @@ void TerrainGen::allocOutputNoiseMap(int width, int height) {
     noiseMap->clear(0.f); // Set all squares to 0
 }
 
-// Allocate buffer where we'll put the color map on the CPU. Check status of
+// Allocate buffer where we'll put the biome map on the CPU. Check status of
 // noise map first to avoid memory leak. Also sets all squares to 0.
-void TerrainGen::allocOutputColorMap(int width, int height) {
+void TerrainGen::allocOutputBiomeMap(int width, int height) {
 
-  if (colorMap)
-    delete colorMap;
-  colorMap = new ColorMap(width, height);
-  colorMap->clear(); // Set all entries to BLANK
+  if (biomeMap)
+    delete biomeMap;
+  biomeMap = new BiomeMap(width, height);
+  biomeMap->clear(); // Set all entries to BLANK
 }
 
 // clearNoiseMapDevice --
@@ -581,14 +581,14 @@ __global__ void perlinSumReduce(int noiseMapWidth, int noiseMapHeight, const int
 }
 
 // Device kernel that generates voronoi noise
-__global__ void voronoi(int colorMapWidth, int colorMapHeight, int blockSize, int gridSize) {
+__global__ void voronoi(int biomeMapWidth, int biomeMapHeight, int blockSize, int gridSize) {
 
   int threadIndex = threadIdx.y * blockDim.x + threadIdx.x;
   int number_of_threads = blockDim.x * blockDim.y;
 
   int pixelX = blockIdx.x * blockDim.x + threadIdx.x;
   int pixelY = blockIdx.y * blockDim.y + threadIdx.y;
-  int gridSquaresInWidth = (colorMapWidth / gridSize) + 1;
+  int gridSquaresInWidth = (biomeMapWidth / gridSize) + 1;
 
   __shared__ pointCoord pointCoordinates[256];
 
@@ -619,14 +619,14 @@ __global__ void voronoi(int colorMapWidth, int colorMapHeight, int blockSize, in
     int pointY = (grid_globalY * gridSize) + (int)((curand_uniform(&state) * gridSize));
     pc.x = pointX;
     pc.y = pointY;
-    pc.clr = (Color)((abs(pointY * gridSize + pointX)) % 7); // 7 possible colors
+    pc.b = (Biome)((abs(pointY * gridSize + pointX)) % 7); // 7 possible colors
     // Write to shared memory
     pointCoordinates[threadIndex] = pc;
 
   }
   __syncthreads();
 
-  if ((pixelX < colorMapWidth) && (pixelY < colorMapHeight)) {
+  if ((pixelX < biomeMapWidth) && (pixelY < biomeMapHeight)) {
 
     // Find 1st nearest point to pixel
     int nearestPtIndex = -1;
@@ -643,9 +643,13 @@ __global__ void voronoi(int colorMapWidth, int colorMapHeight, int blockSize, in
 
     }
 
-    // Get color of 1st nearest point and write it to global memory
+    // Get biome of 1st nearest point and write it to global memory
+    biomeData bd;
     pointCoord pc = pointCoordinates[nearestPtIndex];
-    cuConstTerrainGenParams.colorMapData[pixelY * colorMapWidth + pixelX] = pc.clr;
+    bd.pixelBiome = pc.b;
+    bd.pixelDist = ((pc.x - pixelX) * (pc.x - pixelX)) + ((pc.y - pixelY) * (pc.y - pixelY));
+    // Get distance to 1st nearest point and write it to global memory
+    cuConstTerrainGenParams.biomeMapData[pixelY * biomeMapWidth + pixelX] = bd;
 
   }
 }
@@ -711,18 +715,18 @@ void TerrainGen::generateTemporal(int initialGridSize, int octaves, float persis
 void TerrainGen::generateVoronoi(int gridSize) {
   // Call Voronoi generation kernel here
 
-  int noiseMapWidth = noiseMap->width;
-  int noiseMapHeight = noiseMap->height;
+  int biomeMapWidth = biomeMap->width;
+  int biomeMapHeight = biomeMap->height;
 
   const int threadX = 32;
   const int threadY = 32;
   const int blockSize = 32;
-  const int blockX = (noiseMapWidth + threadX - 1) / threadX;
-  const int blockY = (noiseMapHeight + threadY - 1) / threadY;
+  const int blockX = (biomeMapWidth + threadX - 1) / threadX;
+  const int blockY = (biomeMapHeight + threadY - 1) / threadY;
 
   dim3 threadsPerBlock(threadX, threadY, 1); // 1032 threads per block
   dim3 numBlocks(blockX, blockY, 1); // numBlocks = blockX * blockY
 
-  voronoi <<<numBlocks, threadsPerBlock>>>(noiseMapWidth, noiseMapHeight, blockSize, gridSize); gpuErrChk();
+  voronoi <<<numBlocks, threadsPerBlock>>>(biomeMapWidth, biomeMapHeight, blockSize, gridSize); gpuErrChk();
   cudaDeviceSynchronize(); gpuErrChk();
 }

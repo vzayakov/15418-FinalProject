@@ -58,23 +58,39 @@ void writeNoiseMap(TerrainGen* generator, const int dimX, const int dimY,
 void writeVoronoi(TerrainGen* generator, const int dimX, const int dimY,
                   std::string outputFilename) {
 
-  const ColorMap* colorMap = generator->getColorMap();
+  const BiomeMap* biomeMap = generator->getBiomeMap();
 
-  std::ofstream outColorMap(outputFilename, std::fstream::out);
-  if (!outColorMap) {
-    std::cerr << "Unable to open file: " << outputFilename << '\n';
+  std::ofstream outBiomeMap(outputFilename + "_biome.txt", std::fstream::out);
+  if (!outBiomeMap) {
+    std::cerr << "Unable to open file: " << (outputFilename + "_biome.txt") << '\n';
     exit(EXIT_FAILURE);
   }
 
-  outColorMap << dimX << ' ' << dimY << '\n'; // Write dimensions at top of file
+  outBiomeMap << dimX << ' ' << dimY << '\n'; // Write dimensions at top of file
   for (int i = 0; i < dimY; i++) {
     for (int j = 0; j < dimX; j++) {
-      outColorMap << colorMap->data[i * dimX + j] << ' ';
+      outBiomeMap << (biomeMap->data[i * dimX + j].pixelBiome) << ' ';
     }
-    outColorMap << '\n';
+    outBiomeMap << '\n';
   }
 
-  outColorMap.close();
+  outBiomeMap.close();
+
+  std::ofstream outDistMap(outputFilename + "_distance.txt", std::fstream::out);
+  if (!outDistMap) {
+    std::cerr << "Unable to open file: " << (outputFilename + "_distance.txt") << '\n';
+    exit(EXIT_FAILURE);
+  }
+
+  outDistMap << dimX << ' ' << dimY << '\n'; // Write dimensions at top of file
+  for (int i = 0; i < dimY; i++) {
+    for (int j = 0; j < dimX; j++) {
+      outDistMap << (biomeMap->data[i * dimX + j].pixelDist) << ' ';
+    }
+    outDistMap << '\n';
+  }
+
+  outDistMap.close();
 
 }
 
@@ -147,7 +163,7 @@ int main(int argc, char** argv) {
 
   // Allocate noise map and set up all of the things
   generator->allocOutputNoiseMap(noiseMapWidth, noiseMapHeight);
-  generator->allocOutputColorMap(noiseMapWidth, noiseMapHeight);
+  generator->allocOutputBiomeMap(noiseMapWidth, noiseMapHeight);
   generator->setup(octaves);
 
   // Taking the average of 100 temporal runs
@@ -201,7 +217,7 @@ int main(int argc, char** argv) {
   // Write the generated noise map to a .txt file
   writeNoiseMap(generator, noiseMapWidth, noiseMapHeight, outputFilename);
 
-  writeVoronoi(generator, noiseMapWidth, noiseMapHeight, "voronoi.txt");
+  writeVoronoi(generator, noiseMapWidth, noiseMapHeight, "voronoi");
 
   delete generator;
   return 0;

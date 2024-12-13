@@ -12,21 +12,27 @@ typedef struct {
 } vector2;
 
 // Color enum for color map
-typedef enum color {
+typedef enum biome {
   BLANK = -1,
-  RED = 0,
-  GREEN = 1,
-  BLUE = 2,
-  ORANGE = 3,
-  YELLOW = 4,
-  PURPLE = 5,
-  WHITE = 6
-} Color;
+  MOUNTAIN = 0,
+  OCEAN = 1,
+  DESERT = 2,
+  PLAIN = 3,
+  HILLS1 = 4,
+  HILLS2 = 5,
+  HILLS3 = 6
+} Biome;
+
+// Voronoi pixel struct, contains biome type and distance to seed point
+typedef struct {
+  float pixelDist;
+  Biome pixelBiome;
+} biomeData;
 
 // Voronoi point coordinate struct
 typedef struct {
   int x, y;
-  color clr;
+  Biome b;
 } pointCoord;
 
 #endif

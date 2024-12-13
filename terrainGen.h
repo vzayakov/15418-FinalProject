@@ -9,16 +9,16 @@
 #endif
 
 #include "noiseMap.h"
-#include "colorMap.h"
+#include "biomeMap.h"
 
 class TerrainGen {
 
   private:
   
     NoiseMap* noiseMap; // CPU noise map
-    ColorMap* colorMap;
+    BiomeMap* biomeMap;
     float* cudaDeviceNoiseMapData; // GPU noise map
-    Color* cudaDeviceColorMapData; // GPU color map (voronoi)
+    biomeData* cudaDeviceBiomeMapData; // GPU biome map (voronoi)
     float* cudaDevicePartialSums;
     short* cudaDevicePermutationTable; // Permutation table
   
@@ -29,11 +29,11 @@ class TerrainGen {
 
     const NoiseMap* getNoiseMap(); // Copy noise map from device to CPU
 
-    const ColorMap* getColorMap(); // Copy color map from device to CPU
+    const BiomeMap* getBiomeMap(); // Copy biome map from device to CPU
 
     void setup(int octaves); // Initial setup function
 
-    void allocOutputColorMap(int width, int height); // Allocate CPU color map
+    void allocOutputBiomeMap(int width, int height); // Allocate CPU biome map
 
     void allocOutputNoiseMap(int width, int height); // Allocate CPU noise map
 
