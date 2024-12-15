@@ -4,7 +4,7 @@ import skimage.color
 
 
 genMap = list()
-fd = open("/Users/victorz/Desktop/15418-FinalProject/test.txt", "r")
+fd = open("/Users/Yannis/Desktop/15418/15418-FinalProject/test.txt", "r")
 next(fd) # Skip the first line
 for line in fd:
     linearray = [(0.5 * (float(n) + 1)) for n in line.split()]
@@ -16,9 +16,8 @@ plt.axis('off')
 plt.savefig("heightmap.png", bbox_inches='tight', pad_inches=0)
 plt.show()
 
-'''
 voronoi = list()
-fd = open("/Users/victorz/Desktop/15418-FinalProject/voronoi_biome.txt", "r")
+fd = open("/Users/Yannis/Desktop/15418/15418-FinalProject/voronoi_biome.txt", "r")
 next(fd) # Skip the first line
 for line in fd:
     linearray = [n for n in line.split()]
@@ -33,7 +32,7 @@ plt.savefig("voronoi2.png", bbox_inches='tight', pad_inches=0)
 plt.show()
 
 voronoi = list()
-fd = open("/Users/victorz/Desktop/15418-FinalProject/voronoi_distance.txt", "r")
+fd = open("/Users/Yannis/Desktop/15418/15418-FinalProject/voronoi_distance.txt", "r")
 next(fd) # Skip the first line
 for line in fd:
     linearray = [n for n in line.split()]
@@ -48,4 +47,3 @@ plt.imshow(image_data, interpolation='nearest')
 plt.axis('off')
 plt.savefig("voronoi2dist.png", bbox_inches='tight', pad_inches=0)
 plt.show()
-'''
