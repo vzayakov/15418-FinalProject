@@ -19,13 +19,6 @@ MESSA_SCALE    = 1.5
 MESSA_OFFSET   = 3.
 MESSA_CAP      = 15.
 
-mountain_min, mountain_max = None, None
-desert_min, desert_max = None, None
-plain_min, plain_max = None, None
-hill_min, hill_max = None, None
-dirt_min, dirt_max = None, None
-messa_min, messa_max = None, None
-
 mountain_count = 0
 desert_count = 0
 plain_count = 0
@@ -100,8 +93,6 @@ for i in range(h):
 
         if (biome == 0): 
             new_height = max((MOUNTAIN_OFFSET * dist + dist**3 * height * MOUNTAIN_SCALE), OCEAN_CAP)
-            if (mountain_min == None or new_height < mountain_min): mountain_min = new_height
-            if (mountain_max == None or new_height > mountain_max): mountain_max = new_height
 
             mountain_count+=1
             mountain_heights.append(new_height)
@@ -112,40 +103,30 @@ for i in range(h):
 
         elif (biome == 2):  
             new_height = max((DESERT_OFFSET + dist * height * DESERT_SCALE), OCEAN_CAP)
-            if (desert_min == None or new_height < desert_min): desert_min = new_height
-            if (desert_max == None or new_height > desert_max): desert_max = new_height
 
             desert_count+=1
             desert_heights.append(new_height)
 
         elif (biome == 3):  
             new_height = max(min(PLAIN_OFFSET + height, PLAIN_CAP), OCEAN_CAP)
-            if (plain_min == None or new_height < plain_min): plain_min = new_height
-            if (plain_max == None or new_height > plain_max): plain_max = new_height
 
             plain_count+=1
             plain_heights.append(new_height)
 
         elif (biome == 4):  
             new_height = max((HILL_OFFSET + dist * height * HILL_SCALE), OCEAN_CAP)
-            if (hill_min == None or new_height < hill_min): hill_min = new_height
-            if (hill_max == None or new_height > hill_max): hill_max = new_height
 
             hill_count+=1
             hill_heights.append(new_height)
 
         elif (biome == 5):  
             new_height = max((DIRT_OFFSET * dist + height * DIRT_SCALE), OCEAN_CAP)
-            if (dirt_min == None or new_height < dirt_min): dirt_min = new_height
-            if (dirt_max == None or new_height > dirt_max): dirt_max = new_height
 
             dirt_count+=1
             dirt_heights.append(new_height)
 
         elif (biome == 6):  
             new_height = max((min(MESSA_OFFSET * dist + height * MESSA_SCALE, MESSA_CAP)), OCEAN_CAP)
-            if (messa_min == None or new_height < messa_min): messa_min = new_height
-            if (messa_max == None or new_height > messa_max): messa_max = new_height
 
             messa_count+=1
             messa_heights.append(new_height)
@@ -182,21 +163,6 @@ if hmin < 0.:
     dirt_heights += float(np.abs(hmin))
     messa_heights += float(np.abs(hmin))
 
-
-
-
-    mountain_min += float(np.abs(hmin))
-    mountain_max += float(np.abs(hmin))
-    desert_min += float(np.abs(hmin))
-    desert_max += float(np.abs(hmin))
-    plain_min += float(np.abs(hmin))
-    plain_max += float(np.abs(hmin))
-    hill_min += float(np.abs(hmin))
-    hill_max += float(np.abs(hmin))
-    dirt_min += float(np.abs(hmin))
-    dirt_max += float(np.abs(hmin))
-    messa_min += float(np.abs(hmin))
-    messa_max += float(np.abs(hmin))
 
 # Normalize heightmap
 biomed_hMap_norm = biomed_hMap / float(hmax - hmin)
@@ -240,8 +206,6 @@ for i in range(h):
         color = SNOW
 
         if (biome == 0):
-            height_norm = height / (mountain_max)
-            # print(height_norm, height, mountain_max)
             if (height < dirt_cuttoff): color = GRASS_COLD
             elif (height < stone_cuttoff): color = DIRT
             elif (height < snow_cuttoff): color = STONE
@@ -252,28 +216,23 @@ for i in range(h):
 
 
         elif (biome == 2):
-            height_norm = height / (desert_max)
             if (height < desert_top_cuttoff): color = SAND
             else: color = SAND_TOP
 
         elif (biome == 3):
-            height_norm = height / (plain_max)
             if (height < plain_top_cuttoff): color = GRASS_WARM
             else: color = GRASS_COLD
 
         elif (biome == 4):
-            height_norm = height / (hill_max)
             if (height < hill_top_cuttoff): color = GRASS_WARM
             else: color = DIRT
 
         elif (biome == 5):
-            height_norm = height / (dirt_max)
             if (height < dirt_grass_cuttoff): color = MUD
             elif (height < dirt_mud_cuttoff): color = GRASS_DRY
             else: color = GRASS_WARM
 
         elif (biome == 6):
-            height_norm = height / (messa_max)
             if (height < messa_base_cuttoff): color = CLAY_DARK
             elif (height < messa_mid_cuttoff): color = CLAY_LIGHT
             else: color = SAND_TOP
@@ -287,4 +246,3 @@ plt.axis('off')
 plt.savefig("colormap.png", bbox_inches='tight', pad_inches=0)
 plt.show()
 
-    
