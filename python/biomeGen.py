@@ -53,21 +53,21 @@ hMap = list()
 vMap = list()
 dMap = list()
 
-fd = open("/Users/Yannis/Desktop/15418/15418-FinalProject/test.txt", "r")
+fd = open("test.txt", "r")
 next(fd)
 for line in fd:
     linearray = [n for n in line.split()]
     hMap.append(linearray)
 hMap = np.array(hMap, dtype="float")
 
-fd = open("/Users/Yannis/Desktop/15418/15418-FinalProject/voronoi_biome.txt", "r")
+fd = open("voronoi_biome.txt", "r")
 next(fd)
 for line in fd:
     linearray = [n for n in line.split()]
     vMap.append(linearray)
 vMap = np.array(vMap, dtype="int")
 
-fd = open("/Users/Yannis/Desktop/15418/15418-FinalProject/voronoi_distance.txt", "r")
+fd = open("voronoi_distance.txt", "r")
 next(fd)
 for line in fd:
     linearray = [n for n in line.split()]

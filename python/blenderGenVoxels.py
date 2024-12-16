@@ -9,7 +9,7 @@ randMap = [[8, 6, 8, 6, 1],
 '''
 
 genMap = list()
-fd = open("/Users/victorz/Desktop/15418-FinalProject/test.txt", "r")
+fd = open("test.txt", "r")
 next(fd) # Skip the first line
 for line in fd:
     linearray = [round((12 * (float(n) + 1))) for n in line.split()]
@@ -59,5 +59,5 @@ bpy.context.scene.objects['Terrain'].location = (0.0, 0.0, 0.0)
 # Render using BLENDER_EEVEE for speed or 
 # CYCLES for accuracy
 bpy.context.scene.render.engine = 'BLENDER_EEVEE'
-bpy.context.scene.render.filepath = '/Users/Yannis/Desktop/rendertest.jpg'    # TODO: Get relative path
+bpy.context.scene.render.filepath = 'rendertest.jpg'    # TODO: Get relative path
 bpy.ops.render.render(write_still=True)

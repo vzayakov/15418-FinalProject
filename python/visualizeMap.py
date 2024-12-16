@@ -4,7 +4,7 @@ import skimage.color
 
 
 genMap = list()
-fd = open("/Users/Yannis/Desktop/15418/15418-FinalProject/test.txt", "r")
+fd = open("test.txt", "r")
 next(fd) # Skip the first line
 for line in fd:
     linearray = [(0.5 * (float(n) + 1)) for n in line.split()]
@@ -17,7 +17,7 @@ plt.savefig("heightmap.png", bbox_inches='tight', pad_inches=0)
 plt.show()
 
 voronoi = list()
-fd = open("/Users/Yannis/Desktop/15418/15418-FinalProject/voronoi_biome.txt", "r")
+fd = open("voronoi_biome.txt", "r")
 next(fd) # Skip the first line
 for line in fd:
     linearray = [n for n in line.split()]
@@ -32,7 +32,7 @@ plt.savefig("voronoi2.png", bbox_inches='tight', pad_inches=0)
 plt.show()
 
 voronoi = list()
-fd = open("/Users/Yannis/Desktop/15418/15418-FinalProject/voronoi_distance.txt", "r")
+fd = open("voronoi_distance.txt", "r")
 next(fd) # Skip the first line
 for line in fd:
     linearray = [n for n in line.split()]
