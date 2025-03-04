@@ -1,6 +1,8 @@
 # 15418 Final Project: Parallel Terrain Generation
 Hi! This repository is for our 15-418 Final Project on Parallel Terrain Generation.
 
+![Final Terrain Render](./terrain_render.png)
+
 Website: https://vzayakov.github.io/418FinalProject/
 
 ## Building the Parallel/CUDA Code
